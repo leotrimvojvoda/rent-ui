@@ -1,0 +1,7 @@
+<div class="card">
+    <div class="font-semibold text-xl mb-4">Welcome{{ authService.currentUser()?.firstName ? ', ' + authService.currentUser()!.firstName : '' }}</div>
+    <p class="text-muted-color">You are logged in. Use the menu to navigate.</p>
+    <div class="mt-4">
+        <a routerLink="/profile" class="text-primary font-medium cursor-pointer">Edit your profile</a>
+    </div>
+</div>

@@ -1,0 +1,61 @@
+<div class="card">
+    <div class="font-semibold text-xl mb-6">Edit Profile</div>
+
+    @if (loaded) {
+        <div class="flex flex-col gap-4 max-w-lg">
+            <div>
+                <label for="firstName" class="block font-medium mb-2">First Name</label>
+                <input pInputText id="firstName" type="text" class="w-full" [(ngModel)]="form.firstName" />
+            </div>
+
+            <div>
+                <label for="lastName" class="block font-medium mb-2">Last Name</label>
+                <input pInputText id="lastName" type="text" class="w-full" [(ngModel)]="form.lastName" />
+            </div>
+
+            <div>
+                <label for="email" class="block font-medium mb-2">Email</label>
+                <input pInputText id="email" type="email" class="w-full" [(ngModel)]="form.email" />
+            </div>
+
+            <div>
+                <p-button label="Save Changes" (click)="onSave()" [loading]="loading" />
+            </div>
+        </div>
+    } @else {
+        <div class="text-muted-color">Loading profile...</div>
+    }
+</div>
+
+<div class="card mt-4">
+    <div class="font-semibold text-xl mb-6">Change Password</div>
+
+    <div class="flex flex-col gap-4 max-w-lg">
+        <div>
+            <label for="currentPassword" class="block font-medium mb-2">Current Password</label>
+            <p-password id="currentPassword" [(ngModel)]="passwordForm.currentPassword" [toggleMask]="true" [fluid]="true" [feedback]="false" />
+        </div>
+
+        <div>
+            <label for="newPassword" class="block font-medium mb-2">New Password</label>
+            <p-password id="newPassword" [(ngModel)]="passwordForm.newPassword" [toggleMask]="true" [fluid]="true" [feedback]="false" />
+        </div>
+
+        <div>
+            <label for="confirmPassword" class="block font-medium mb-2">Confirm New Password</label>
+            <p-password id="confirmPassword" [(ngModel)]="passwordForm.confirmPassword" [toggleMask]="true" [fluid]="true" [feedback]="false" />
+        </div>
+
+        <div *ngIf="passwordSuccess" class="p-4 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400" role="alert">
+            {{ passwordSuccess }}
+        </div>
+
+        <div *ngIf="passwordError" class="p-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400" role="alert">
+            {{ passwordError }}
+        </div>
+
+        <div>
+            <p-button label="Update Password" (click)="onChangePassword()" [loading]="passwordLoading" />
+        </div>
+    </div>
+</div>

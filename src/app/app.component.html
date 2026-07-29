@@ -1,0 +1,6 @@
+<p-toast key="global" />
+<p-confirmDialog />
+@if (loadingService.isLoading()) {
+    <p-progressbar mode="indeterminate" [style]="{ position: 'fixed', top: 0, left: 0, width: '100%', 'z-index': 9999, height: '3px' }" />
+}
+<router-outlet></router-outlet>
