@@ -3,11 +3,11 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { DatePickerModule } from 'primeng/datepicker';
 import { SelectModule } from 'primeng/select';
-import { CityResponse, cityLabel, cityName } from '../../core/models/city.model';
+import { CityResponse, cityLabel } from '../../core/models/city.model';
 import { PublicCarSummaryResponse } from '../../core/models/car.model';
 import { CityService } from '../../core/services/city.service';
+import { CarCard, CarCardSkeleton } from '../../shared/components/car-card';
 import { PublicCarService } from '../../core/services/public-car.service';
-import { formatMoney } from '../../shared/utils/format';
 
 /**
  * Marketing copy for the "How it works" band. Static by design — it describes
@@ -31,13 +31,10 @@ const PLACEHOLDER_REVIEWS = [
     { quote: "Counter pickup took five minutes. Cleanest rental I've ever driven.", initials: 'JT', name: 'Jonas T.', meta: 'Rented a CR-V · July 2026' }
 ];
 
-/** Rotating card art, standing in for cars that have no photo uploaded yet. */
-const PLACEHOLDER_CAR_COLORS = ['#7fa8c9', '#c9515e', '#6b8f5e', '#8a7fc9'];
-
 @Component({
     selector: 'app-home',
     standalone: true,
-    imports: [RouterModule, FormsModule, SelectModule, DatePickerModule],
+    imports: [RouterModule, FormsModule, SelectModule, DatePickerModule, CarCard, CarCardSkeleton],
     templateUrl: './home.html'
 })
 export class Home {
@@ -86,19 +83,6 @@ export class Home {
     }
 
     cityOptions = computed(() => this.cities().map((city) => ({ label: cityLabel(city), value: city.id })));
-
-    carColor(index: number): string {
-        return PLACEHOLDER_CAR_COLORS[index % PLACEHOLDER_CAR_COLORS.length];
-    }
-
-    carLocation(car: PublicCarSummaryResponse): string {
-        return cityName(car.company.city);
-    }
-
-    /** `€40.00` — always two decimals, never recomputed client-side. */
-    price(car: PublicCarSummaryResponse): string {
-        return formatMoney(car.dailyPriceFrom);
-    }
 
     /**
      * Hands the search over to the catalog as URL state. Availability dates are

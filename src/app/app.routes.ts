@@ -5,6 +5,8 @@ import { companySetupGuard, ownerCompanyGuard } from './core/guards/company.guar
 import { roleGuard } from './core/guards/role.guard';
 import { AppLayout } from './core/layout/component/app.layout';
 import { AppPublicLayout } from './core/layout/component/app.publiclayout';
+import { CarDetail } from './features/catalog/car-detail';
+import { Catalog } from './features/catalog/catalog';
 import { Dashboard } from './features/dashboard/dashboard';
 import { Home } from './features/home/home';
 import { Notfound } from './features/notfound/notfound';
@@ -106,22 +108,19 @@ export const appRoutes: Routes = [
         component: AppPublicLayout,
         children: [
             { path: '', component: Home, data: { breadcrumb: 'Home' } },
+            { path: 'cars', component: Catalog, data: { breadcrumb: 'Browse cars' } },
             {
-                path: 'cars',
+                // Booking is CLIENT-only, so this route is guarded even though it
+                // sits under the public shell. Phase 4 replaces the placeholder.
+                path: 'cars/:carId/book',
                 component: PlaceholderPage,
+                canActivate: [authGuard, roleGuard('CLIENT')],
                 data: {
-                    breadcrumb: 'Browse cars',
-                    ...soon('Browse cars', 'The public catalog with search, filters and availability lands in Phase 3.', 'pi pi-search')
+                    breadcrumb: 'Request booking',
+                    ...soon('Request booking', 'The booking flow — estimate, confirmation and the PENDING explainer — lands in Phase 4.', 'pi pi-calendar-plus')
                 }
             },
-            {
-                path: 'cars/:carId',
-                component: PlaceholderPage,
-                data: {
-                    breadcrumb: 'Car',
-                    ...soon('Car detail', 'Photos, pricing tiers and booking land in Phase 3.', 'pi pi-car')
-                }
-            }
+            { path: 'cars/:carId', component: CarDetail, data: { breadcrumb: 'Car' } }
         ]
     },
 

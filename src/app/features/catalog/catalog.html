@@ -1,0 +1,120 @@
+<div class="mx-auto w-full max-w-[1100px] px-6 py-8">
+    <h1 class="font-display font-bold text-3xl m-0 mb-1">Browse cars</h1>
+    <p class="text-muted-color text-sm m-0 mb-6">Cars listed by local rental companies. The price you see is the price you pay.</p>
+
+    <!-- Filter bar — the landing search card, widened for the full filter set. -->
+    <form [formGroup]="form" (ngSubmit)="onSearch()" class="bg-surface-0 dark:bg-surface-900 rounded-[20px] shadow-[0_16px_40px_rgba(15,40,30,0.10)] dark:shadow-none dark:border dark:border-surface p-5 sm:p-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div class="flex flex-col gap-[7px]">
+                <label for="cityId" class="text-[11px] font-semibold uppercase tracking-[0.8px] text-keyway-subtle">City</label>
+                <div class="keyway-field flex items-center gap-2.5 border-[1.5px] border-keyway-field dark:border-surface-700 rounded-xl px-4 py-3">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="text-primary shrink-0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"></path>
+                        <circle cx="12" cy="10" r="2.5"></circle>
+                    </svg>
+                    <p-select inputId="cityId" formControlName="cityId" [options]="cityOptions()" optionLabel="label" optionValue="value" placeholder="Anywhere" appendTo="body" [showClear]="true" styleClass="w-full" />
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-[7px]">
+                <label for="make" class="text-[11px] font-semibold uppercase tracking-[0.8px] text-keyway-subtle">Make</label>
+                <input pInputText id="make" formControlName="make" type="text" maxlength="80" placeholder="Any make" class="w-full" />
+            </div>
+
+            <div class="flex flex-col gap-[7px]">
+                <label for="model" class="text-[11px] font-semibold uppercase tracking-[0.8px] text-keyway-subtle">Model</label>
+                <input pInputText id="model" formControlName="model" type="text" maxlength="80" placeholder="Any model" class="w-full" />
+            </div>
+
+            <div class="flex flex-col gap-[7px]">
+                <span class="text-[11px] font-semibold uppercase tracking-[0.8px] text-keyway-subtle">Price per day</span>
+                <div class="flex items-center gap-2">
+                    <p-inputnumber inputId="minDailyPrice" formControlName="minDailyPrice" [min]="0" [maxFractionDigits]="2" placeholder="Min" styleClass="w-full" inputStyleClass="w-full" />
+                    <span class="text-muted-color text-sm shrink-0">to</span>
+                    <p-inputnumber inputId="maxDailyPrice" formControlName="maxDailyPrice" [min]="0" [maxFractionDigits]="2" placeholder="Max" styleClass="w-full" inputStyleClass="w-full" />
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-[7px]">
+                <label for="availableFrom" class="text-[11px] font-semibold uppercase tracking-[0.8px] text-keyway-subtle">Pick-up</label>
+                <p-datepicker
+                    inputId="availableFrom"
+                    formControlName="availableFrom"
+                    [showTime]="true"
+                    [minDate]="now"
+                    hourFormat="24"
+                    placeholder="Any time"
+                    appendTo="body"
+                    styleClass="w-full"
+                    inputStyleClass="w-full"
+                    [showClear]="true"
+                />
+            </div>
+
+            <div class="flex flex-col gap-[7px]">
+                <label for="availableTo" class="text-[11px] font-semibold uppercase tracking-[0.8px] text-keyway-subtle">Return</label>
+                <p-datepicker
+                    inputId="availableTo"
+                    formControlName="availableTo"
+                    [showTime]="true"
+                    [minDate]="minReturn()"
+                    hourFormat="24"
+                    placeholder="Any time"
+                    appendTo="body"
+                    styleClass="w-full"
+                    inputStyleClass="w-full"
+                    [showClear]="true"
+                />
+            </div>
+
+            <div class="flex flex-col gap-[7px]">
+                <label for="sort" class="text-[11px] font-semibold uppercase tracking-[0.8px] text-keyway-subtle">Sort by</label>
+                <p-select inputId="sort" formControlName="sort" [options]="sortOptions" optionLabel="label" optionValue="value" placeholder="Best match" appendTo="body" [showClear]="true" styleClass="w-full" (onChange)="onSortChange()" />
+            </div>
+
+            <div class="flex items-end gap-2">
+                <button type="submit" class="keyway-cta flex-1">Search</button>
+                @if (filtersActive()) {
+                <button type="button" class="px-4 py-3 rounded-xl border border-surface bg-transparent text-muted-color hover:text-color cursor-pointer text-sm" (click)="clearFilters()">Clear</button>
+                }
+            </div>
+        </div>
+
+        @if (filterError()) {
+        <p-message severity="error" [text]="filterError()!" styleClass="w-full mt-4" />
+        } @else if (appliedState()?.availableFrom) {
+        <p class="text-xs text-muted-color mt-4 mb-0">Showing only cars free for this window.</p>
+        }
+    </form>
+
+    <!-- Results -->
+    @if (loading()) {
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+        @for (skeleton of skeletons; track skeleton) {
+        <app-car-card-skeleton />
+        }
+    </div>
+    } @else if (failed()) {
+    <div class="card">
+        <app-empty-state icon="pi pi-exclamation-triangle" title="We couldn't load the catalog" message="Something went wrong reaching the server. Try the search again in a moment." actionLabel="Try again" (actionClick)="onSearch()" />
+    </div>
+    } @else if (cars().length === 0) {
+    <div class="card">
+        @if (filtersActive()) {
+        <app-empty-state icon="pi pi-search" title="No cars match those filters" message="Try a wider price range, different dates, or another city." actionLabel="Clear filters" (actionClick)="clearFilters()" />
+        } @else {
+        <app-empty-state icon="pi pi-car" title="No cars listed yet" message="There are no published cars in the catalog right now. Check back soon." actionLabel="Back to home" actionLink="/" />
+        }
+    </div>
+    } @else {
+    <p class="text-sm text-muted-color m-0 mb-4">{{ totalElements() }} {{ totalElements() === 1 ? 'car' : 'cars' }} available</p>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+        @for (car of cars(); track car.id; let i = $index) {
+        <app-car-card [car]="car" [index]="i" [linkParams]="detailParams()" />
+        }
+    </div>
+
+    <app-pager [page]="page()" [size]="pageSize" [totalElements]="totalElements()" [totalPages]="totalPages()" (pageChange)="onPageChange($event)" />
+    }
+</div>

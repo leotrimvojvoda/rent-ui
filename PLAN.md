@@ -115,7 +115,7 @@ Shell: `AppPublicLayout` — green nav (logo mark, Fleet / How it works / Review
 
 **Landing — `/`** *(built in Phase 1)*: hero, search card (city + pick-up/return date-time → serialises to `/cars` query params), "Popular near you" (live `POST /public/cars/filter`, `size=4`, skeletons, hides itself when empty or unreachable), "How it works", testimonials (**placeholder copy — see §7**), CTA band. This page is the reference implementation of §3.
 
-**Catalog — `/` (also `/cars`)**
+**Catalog — `/cars`** *(the landing page owns `/`)*
 - Filter bar: city dropdown (from `GET /cities`, label "Name (COUNTRY)"), make and model text inputs, min/max daily price, availability window (date-time range picker), sort dropdown (Price ↑, Price ↓, Newest, Oldest).
 - Availability inputs validate both-or-neither and from < to; helper text "showing only cars free for this window" when set.
 - Results: responsive card grid — primary image (placeholder when null), make model year, "from {dailyPriceFrom}/day", company name + city. Card click → detail.
@@ -123,11 +123,11 @@ Shell: `AppPublicLayout` — green nav (logo mark, Fleet / How it works / Review
 - Shared pager; skeleton cards while loading; empty state with "clear filters".
 - *Acceptance*: an anonymous user can find a car by city + dates and reach its detail; reload preserves filters; invalid price range and half-open date range blocked client-side.
 
-**Car detail — `/cars/:id`**
+**Car detail — `/cars/:carId`**
 - From `GET /public/cars/{carId}`. Gallery from `imageUrls` (first = primary; placeholder when empty), make/model/year, company block (name, description, city, address — no contact details, per contract), pricing panel: `defaultDailyPrice`, "from `dailyPriceFrom`", tier table ("3–6 days → 30.00/day", open-ended "7+ days" when `maxDays` absent, plus a row for other durations at the default price).
 - Booking entry: date-time range preselected from catalog filters (carried via query params) + "Request booking" CTA.
   - Anonymous → redirect to `/auth/login?returnUrl=<this page incl. dates>`.
-  - Logged-in CLIENT → booking flow (5.3).
+  - Logged-in CLIENT → booking flow at `/cars/:carId/book?startAt=&endAt=` (5.3), guarded by `authGuard` + `roleGuard('CLIENT')`.
   - Logged-in OWNER → CTA replaced by a note ("Bookings are for client accounts") — `POST /rentals` is CLIENT-only.
 - 404 (unpublished/retired/unknown) → in-page "This car is no longer available" state with catalog link.
 - *Acceptance*: every price row renders with two decimals; a car unpublished between catalog and detail shows the friendly unavailable state, not an error toast.
