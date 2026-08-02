@@ -7,6 +7,9 @@ import { AppLayout } from './core/layout/component/app.layout';
 import { AppPublicLayout } from './core/layout/component/app.publiclayout';
 import { CarDetail } from './features/catalog/car-detail';
 import { Catalog } from './features/catalog/catalog';
+import { Booking } from './features/rentals/booking';
+import { RentalDetail } from './features/rentals/rental-detail';
+import { Rentals } from './features/rentals/rentals';
 import { Dashboard } from './features/dashboard/dashboard';
 import { Home } from './features/home/home';
 import { Notfound } from './features/notfound/notfound';
@@ -34,15 +37,8 @@ export const appRoutes: Routes = [
             },
 
             // Client
-            {
-                path: 'rentals',
-                component: PlaceholderPage,
-                canActivate: [roleGuard('CLIENT')],
-                data: {
-                    breadcrumb: 'My rentals',
-                    ...soon('My rentals', 'Your bookings and their status will appear here.', 'pi pi-calendar')
-                }
-            },
+            { path: 'rentals', component: Rentals, canActivate: [roleGuard('CLIENT')], data: { breadcrumb: 'My rentals' } },
+            { path: 'rentals/:rentalId', component: RentalDetail, canActivate: [roleGuard('CLIENT')], data: { breadcrumb: 'Rental' } },
 
             // Owner
             {
@@ -111,14 +107,11 @@ export const appRoutes: Routes = [
             { path: 'cars', component: Catalog, data: { breadcrumb: 'Browse cars' } },
             {
                 // Booking is CLIENT-only, so this route is guarded even though it
-                // sits under the public shell. Phase 4 replaces the placeholder.
+                // sits under the public shell alongside the car it books.
                 path: 'cars/:carId/book',
-                component: PlaceholderPage,
+                component: Booking,
                 canActivate: [authGuard, roleGuard('CLIENT')],
-                data: {
-                    breadcrumb: 'Request booking',
-                    ...soon('Request booking', 'The booking flow — estimate, confirmation and the PENDING explainer — lands in Phase 4.', 'pi pi-calendar-plus')
-                }
+                data: { breadcrumb: 'Request booking' }
             },
             { path: 'cars/:carId', component: CarDetail, data: { breadcrumb: 'Car' } }
         ]

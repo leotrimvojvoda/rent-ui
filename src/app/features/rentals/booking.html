@@ -1,0 +1,140 @@
+<div class="mx-auto w-full max-w-[820px] px-6 py-8">
+    @if (created(); as rental) {
+    <!-- Confirmation. Every figure here is the server's snapshot, not our estimate. -->
+    <div class="keyway-band p-7 sm:p-10 mb-6">
+        <div class="keyway-band-blob w-[220px] h-[220px] -right-12 -bottom-16"></div>
+        <div class="relative">
+            <div class="w-12 h-12 rounded-2xl bg-keyway-lime flex items-center justify-center mb-5">
+                <i class="pi pi-check text-xl! text-keyway-green"></i>
+            </div>
+            <h1 class="font-display font-bold text-2xl sm:text-3xl text-white m-0 mb-2">Request sent</h1>
+            <p class="text-white/70 text-[15px] m-0">{{ rental.car.make }} {{ rental.car.model }} · {{ rental.company.name }}</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="flex items-center justify-between gap-4 mb-5">
+            <h2 class="keyway-section-title m-0">Your request</h2>
+            <app-rental-status-badge [status]="rental.status" />
+        </div>
+
+        <p class="text-sm text-muted-color leading-relaxed m-0 mb-5">
+            The rental company reviews your request and decides. If nobody decides before your pick-up time on
+            <strong class="text-color">{{ dateTime(rental.startAt) }}</strong>, the request expires automatically and nothing is charged.
+        </p>
+
+        <dl class="grid grid-cols-1 sm:grid-cols-[9rem_1fr] gap-y-3 gap-x-4 m-0 text-sm">
+            <dt class="text-muted-color">Pick-up</dt>
+            <dd class="m-0 font-medium">{{ dateTime(rental.startAt) }}</dd>
+
+            <dt class="text-muted-color">Return</dt>
+            <dd class="m-0 font-medium">{{ dateTime(rental.endAt) }}</dd>
+
+            <dt class="text-muted-color">Company</dt>
+            <dd class="m-0 font-medium">{{ rental.company.name }}@if (rental.company.city) {<span class="text-muted-color font-normal"> · {{ rental.company.city }}</span>}</dd>
+        </dl>
+
+        <div class="rounded-xl border border-surface p-4 mt-5">
+            <div class="flex items-center justify-between text-sm">
+                <span class="text-muted-color">{{ money(rental.dailyPrice) }} × {{ rental.totalDays }} {{ rental.totalDays === 1 ? 'day' : 'days' }}</span>
+                <span class="font-medium">{{ money(rental.totalPrice) }}</span>
+            </div>
+            <div class="flex items-center justify-between border-t border-surface mt-3 pt-3">
+                <span class="font-semibold">Total</span>
+                <span class="font-display font-bold text-lg text-primary">{{ money(rental.totalPrice) }}</span>
+            </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3 mt-6">
+            <a [routerLink]="['/rentals', rental.id]" class="keyway-cta no-underline flex-1">View this rental</a>
+            <a routerLink="/rentals" class="px-5 py-3 rounded-xl border border-surface no-underline text-color text-center text-sm font-medium hover:bg-emphasis flex-1">All my rentals</a>
+        </div>
+    </div>
+    } @else if (loading()) {
+    <div class="card" aria-hidden="true">
+        <div class="h-6 w-1/3 rounded bg-keyway-shade dark:bg-surface-800 animate-pulse"></div>
+        <div class="h-4 w-1/2 rounded bg-keyway-shade dark:bg-surface-800 animate-pulse mt-4"></div>
+        <div class="h-24 rounded bg-keyway-shade dark:bg-surface-800 animate-pulse mt-6"></div>
+    </div>
+    } @else if (unavailable()) {
+    <div class="card text-center py-12">
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-primary-50 dark:bg-surface-800 flex items-center justify-center mb-5">
+            <i class="pi pi-car text-2xl! text-primary"></i>
+        </div>
+        <h1 class="font-display font-bold text-xl m-0 mb-2">This car is no longer available</h1>
+        <p class="text-muted-color text-sm max-w-md mx-auto m-0 mb-6">It was taken off the catalog while you were booking. Nothing was requested.</p>
+        <a routerLink="/cars" class="keyway-cta no-underline">Browse other cars</a>
+    </div>
+    } @else if (car()) { @if (car(); as detail) {
+    <a [routerLink]="['/cars', detail.id]" class="inline-flex items-center gap-2 text-sm text-muted-color no-underline hover:text-color mb-5">
+        <i class="pi pi-arrow-left text-xs"></i>
+        Back to the car
+    </a>
+
+    <h1 class="font-display font-bold text-2xl m-0 mb-1">Request this car</h1>
+    <p class="text-muted-color text-sm m-0 mb-6">{{ detail.make }} {{ detail.model }} · {{ detail.modelYear }} · {{ detail.company.name }}</p>
+
+    <div class="card">
+        <h2 class="keyway-section-title">When do you need it?</h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label for="startAt" class="block text-color font-medium text-sm mb-2">Pick-up</label>
+                <p-datepicker
+                    inputId="startAt"
+                    [ngModel]="startAt()"
+                    (ngModelChange)="startAt.set($event)"
+                    [showTime]="true"
+                    [minDate]="now"
+                    hourFormat="24"
+                    placeholder="Choose a time"
+                    appendTo="body"
+                    styleClass="w-full"
+                    inputStyleClass="w-full"
+                />
+            </div>
+            <div>
+                <label for="endAt" class="block text-color font-medium text-sm mb-2">Return</label>
+                <p-datepicker
+                    inputId="endAt"
+                    [ngModel]="endAt()"
+                    (ngModelChange)="endAt.set($event)"
+                    [showTime]="true"
+                    [minDate]="minReturn()"
+                    hourFormat="24"
+                    placeholder="Choose a time"
+                    appendTo="body"
+                    styleClass="w-full"
+                    inputStyleClass="w-full"
+                />
+            </div>
+        </div>
+
+        @if (dateError()) {
+        <p-message severity="error" [text]="dateError()!" styleClass="w-full mt-4" />
+        }
+
+        <!-- Estimate only. The server prices the rental when it creates it. -->
+        @if (estimate(); as preview) {
+        <div class="rounded-xl border border-surface p-4 mt-5">
+            <div class="flex items-center justify-between text-sm">
+                <span class="text-muted-color">{{ money(preview.dailyPrice) }} × {{ preview.totalDays }} {{ preview.totalDays === 1 ? 'day' : 'days' }}</span>
+                <span class="font-medium">{{ money(preview.totalPrice) }}</span>
+            </div>
+            <div class="flex items-center justify-between border-t border-surface mt-3 pt-3">
+                <span class="font-semibold">Estimated total</span>
+                <span class="font-display font-bold text-lg">{{ money(preview.totalPrice) }}</span>
+            </div>
+            <p class="text-xs text-muted-color mt-3 mb-0">Estimate — the final price is set when the request is created. A part-day counts as a full day.</p>
+        </div>
+        } @else {
+        <p class="text-sm text-muted-color mt-5 mb-0">Pick both times to see an estimated price.</p>
+        } @if (formError()) {
+        <p-message severity="error" [text]="formError()!" styleClass="w-full mt-5" />
+        }
+
+        <button type="button" class="keyway-cta w-full mt-6" [disabled]="submitting()" (click)="submit()">{{ submitting() ? 'Sending request…' : 'Send request' }}</button>
+        <p class="text-xs text-muted-color text-center mt-3 mb-0">Nothing is charged now. The company has to approve your request first.</p>
+    </div>
+    } }
+</div>

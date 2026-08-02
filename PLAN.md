@@ -158,7 +158,7 @@ Shell: `AppPublicLayout` — green nav (logo mark, Fleet / How it works / Review
 
 ### 5.3 Client area (authGuard + role CLIENT, inside AppLayout)
 
-**Booking flow — from car detail (dialog or `/cars/:id/book` step page)**
+**Booking flow — `/cars/:carId/book?startAt=&endAt=`** (step page, `authGuard` + `roleGuard('CLIENT')`)
 - Pickup and return date-time (local → UTC). Client-side: return after pickup, pickup in the future.
 - Non-binding estimate panel: day count via the documented billing rule + matching tier price, labelled "Estimate — final price is set when the request is created."
 - `POST /rentals` → on 201 show confirmation with the **server's** snapshot (PENDING, dailyPrice, totalDays, totalPrice, company name/city) and links to rentals. Explain PENDING and that an undecided request expires at pickup time.
@@ -167,7 +167,7 @@ Shell: `AppPublicLayout` — green nav (logo mark, Fleet / How it works / Review
 **My rentals — `/rentals`**
 - `GET /rentals` paged, newest first; status filter tabs ("All" + the 7 statuses, one at a time — what the API accepts). Rows: car, company + city, start–end (local), total price, status badge. Click → detail. Empty state → "Browse cars".
 
-**Rental detail — `/rentals/:id`**
+**Rental detail — `/rentals/:rentalId`**
 - Full `RentalResponse`: status with plain-language explanation, dates, dailyPrice × totalDays = totalPrice breakdown, car summary, company block **with contact email/phone and address** (where the client learns pickup contact).
 - Cancel only when PENDING/APPROVED **and** pickup in the future (hide otherwise); confirm dialog; on `409` (`RENTAL_ALREADY_STARTED` or transition conflict) explain and refetch. 404 → not-found.
 
@@ -262,7 +262,7 @@ Public layout (anonymous vs logged-in header), catalog with full filter bar, URL
 
 ### Phase 4 — Client booking and rentals
 Booking flow (estimate + disclaimer, UTC conversion, `INVALID_RENTAL_PERIOD`/`CAR_NOT_AVAILABLE` branches, PENDING explainer), my-rentals list with status tabs, rental detail with breakdown + company contact + guarded cancel, client dashboard widgets.
-*Design*: rental rows are cards, not table rows, so they need no mobile variant; status tabs are a PrimeNG `p-tabs` in brand colours; the price breakdown sits in a bordered sub-panel inside the detail `.card`; the confirmation screen uses the green band with the server's snapshot. Status badges follow §4 and are built once here as a shared component.
+*Design*: rental rows are cards, not table rows, so they need no mobile variant; the status filter is a scrollable segmented control of pill buttons rather than `p-tabs` (the tabs only filter a list — the URL owns the state, so tab panels would be indirection); it holds eight options at 360 px; the price breakdown sits in a bordered sub-panel inside the detail `.card`; the confirmation screen uses the green band with the server's snapshot. Status badges follow §4 and are built once here as a shared component.
 *Acceptance*: a client books a car found via availability search and sees the server-priced confirmation; cancelling an APPROVED future rental works; post-pickup cancel impossible in UI and raced case handled (`RENTAL_ALREADY_STARTED`); dark mode and 360 px checked.
 
 ### Phase 5 — Owner: company and fleet

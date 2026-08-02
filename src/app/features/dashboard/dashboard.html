@@ -11,9 +11,58 @@
     </div>
 </div>
 
-<!-- Quick links. The real counts and widgets arrive with Phases 4 and 6. -->
+@if (authService.isClient()) { @if (loading()) {
+<div class="grid grid-cols-1 md:grid-cols-2 gap-5" aria-hidden="true">
+    <div class="card m-0 h-36 animate-pulse"></div>
+    <div class="card m-0 h-36 animate-pulse"></div>
+</div>
+} @else {
+<!-- What needs attention right now, ahead of the counts. -->
+@if (active() || upcoming()) {
+<div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+    @if (active(); as rental) {
+    <a [routerLink]="['/rentals', rental.id]" class="card m-0 no-underline text-color block">
+        <div class="flex items-center justify-between gap-3 mb-3">
+            <span class="text-xs uppercase tracking-[0.6px] text-muted-color">You have this car</span>
+            <app-rental-status-badge [status]="rental.status" />
+        </div>
+        <div class="font-semibold text-[17px]">{{ rental.car.make }} {{ rental.car.model }}</div>
+        <div class="text-sm text-muted-color mt-1">Due back {{ dateTime(rental.endAt) }}</div>
+        <div class="text-sm text-muted-color mt-1">{{ rental.company.name }}</div>
+    </a>
+    } @if (upcoming(); as rental) {
+    <a [routerLink]="['/rentals', rental.id]" class="card m-0 no-underline text-color block">
+        <div class="flex items-center justify-between gap-3 mb-3">
+            <span class="text-xs uppercase tracking-[0.6px] text-muted-color">Next pick-up</span>
+            <app-rental-status-badge [status]="rental.status" />
+        </div>
+        <div class="font-semibold text-[17px]">{{ rental.car.make }} {{ rental.car.model }}</div>
+        <div class="text-sm text-muted-color mt-1">{{ dateTime(rental.startAt) }}</div>
+        <div class="text-sm text-muted-color mt-1">{{ rental.company.name }} · {{ money(rental.totalPrice) }}</div>
+    </a>
+    }
+</div>
+} @if (totalRentals() > 0) {
+<h2 class="keyway-section-title">Your rentals</h2>
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-5">
+    @for (count of counts(); track count.status) {
+    <a [routerLink]="['/rentals']" [queryParams]="{ status: count.status }" class="card m-0 no-underline text-color block">
+        <div class="font-display font-bold text-3xl text-primary">{{ count.value }}</div>
+        <div class="text-sm text-muted-color mt-1">{{ count.label }}</div>
+    </a>
+    }
+</div>
+@if (countsArePartial()) {
+<p class="text-xs text-muted-color mt-3 mb-0">Counts cover your {{ rentals().length }} most recent rentals of {{ totalRentals() }}.</p>
+} } @else {
+<div class="card">
+    <div class="font-semibold text-[17px] mb-1">No rentals yet</div>
+    <p class="text-sm text-muted-color m-0 mb-4">Find a car by city and dates — you only pay after the company confirms.</p>
+    <a routerLink="/cars" class="keyway-cta no-underline">Browse cars</a>
+</div>
+} } } @else {
 <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-    @for (tile of tiles(); track tile.link) {
+    @for (tile of authService.isOwner() ? ownerTiles : neutralTiles; track tile.link) {
     <a [routerLink]="tile.link" class="card m-0 no-underline text-color block transition-[transform,box-shadow] duration-150 hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(15,40,30,0.12)]">
         <div class="w-10 h-10 rounded-xl bg-primary-50 dark:bg-surface-800 flex items-center justify-center mb-4">
             <i [class]="tile.icon" class="text-primary"></i>
@@ -23,3 +72,4 @@
     </a>
     }
 </div>
+}
