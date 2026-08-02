@@ -1,7 +1,25 @@
-<div class="card">
-    <div class="font-semibold text-xl mb-4">Welcome{{ authService.currentUser()?.firstName ? ', ' + authService.currentUser()!.firstName : '' }}</div>
-    <p class="text-muted-color">You are logged in. Use the menu to navigate.</p>
-    <div class="mt-4">
-        <a routerLink="/profile" class="text-primary font-medium cursor-pointer">Edit your profile</a>
+<!-- Welcome band — the green hero treatment from the landing page, reused inside the app. -->
+<div class="keyway-band px-7 py-8 sm:px-10 sm:py-10 mb-8">
+    <div class="keyway-band-blob w-[260px] h-[260px] -right-15 -bottom-20"></div>
+    <div class="relative flex flex-col md:flex-row md:items-center justify-between gap-5">
+        <div>
+            <h1 class="font-display font-bold text-2xl sm:text-3xl text-white m-0 mb-2">Welcome{{ authService.currentUser()?.firstName ? ', ' + authService.currentUser()!.firstName : '' }}</h1>
+            <p class="m-0 text-[15px] text-white/70">{{ intro() }}</p>
+        </div>
+
+        <a [routerLink]="primaryAction().link" class="keyway-cta no-underline shrink-0">{{ primaryAction().label }}</a>
     </div>
+</div>
+
+<!-- Quick links. The real counts and widgets arrive with Phases 4 and 6. -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+    @for (tile of tiles(); track tile.link) {
+    <a [routerLink]="tile.link" class="card m-0 no-underline text-color block transition-[transform,box-shadow] duration-150 hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(15,40,30,0.12)]">
+        <div class="w-10 h-10 rounded-xl bg-primary-50 dark:bg-surface-800 flex items-center justify-center mb-4">
+            <i [class]="tile.icon" class="text-primary"></i>
+        </div>
+        <div class="font-semibold text-[17px]">{{ tile.title }}</div>
+        <div class="text-sm text-muted-color leading-relaxed mt-1.5">{{ tile.body }}</div>
+    </a>
+    }
 </div>

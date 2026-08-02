@@ -1,32 +1,29 @@
-import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
+import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
+import { globalToastFor } from '../errors/api-error';
+import { SKIP_ERROR_TOAST } from '../http/http-context';
 import { ToastService } from '../services/toast.service';
-import { JwtService } from '../services/jwt.service';
 
+/**
+ * The last resort for failures nobody else surfaced. Codes owned by a form or a
+ * page (validation, auth branches, business 409s, 404s) stay silent here and are
+ * rendered inline by whoever made the call; 401 belongs to the refresh flow in
+ * the auth interceptor. Everything left over — network failures, server errors,
+ * unknown codes — gets a toast.
+ */
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
-  const toastService = inject(ToastService);
-  const jwtService = inject(JwtService);
-  const router = inject(Router);
+    const toast = inject(ToastService);
 
-  return next(req).pipe(
-    catchError((error: HttpErrorResponse) => {
-      if (error.status === 401) {
-        jwtService.destroyToken();
-        router.navigate(['/auth/login']);
-        toastService.error('Session expired', 'Please log in again.');
-      } else if (error.status === 0) {
-        toastService.error('Network error', 'Please check your connection.');
-      } else if (error.status === 403) {
-        toastService.error('Forbidden', 'You do not have permission to perform this action.');
-      } else if (error.status === 404) {
-        toastService.error('Not found', 'The requested resource was not found.');
-      } else if (error.status >= 500) {
-        toastService.error('Server error', 'Something went wrong on the server.');
-      }
-
-      return throwError(() => error);
-    })
-  );
+    return next(req).pipe(
+        catchError((error: unknown) => {
+            if (!req.context.get(SKIP_ERROR_TOAST)) {
+                const notice = globalToastFor(error);
+                if (notice) {
+                    toast.error(notice.summary, notice.detail);
+                }
+            }
+            return throwError(() => error);
+        })
+    );
 };

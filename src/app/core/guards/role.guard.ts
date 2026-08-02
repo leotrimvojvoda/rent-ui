@@ -1,19 +1,25 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
-import { JwtService } from '../services/jwt.service';
+import { UserRole } from '../models/user.model';
+import { AuthService } from '../services/auth.service';
 
-export function roleGuard(...allowedRoles: string[]): CanActivateFn {
-    return () => {
-        const jwtService = inject(JwtService);
+/**
+ * Role comes from `GET /auth/me` via the current-user signal, not from decoded
+ * JWT claims. A signed-out user is sent to login (with a return URL); a signed-in
+ * user with the wrong role gets the access-denied page.
+ */
+export function roleGuard(...allowedRoles: UserRole[]): CanActivateFn {
+    return (_route, state) => {
+        const auth = inject(AuthService);
         const router = inject(Router);
 
-        const roles: string[] = jwtService.getAttribute('roles') || [];
-        const hasRole = allowedRoles.some(role => roles.includes(role));
-
-        if (hasRole) {
-            return true;
+        const role = auth.role();
+        if (!role) {
+            return router.createUrlTree(['/auth/login'], {
+                queryParams: { returnUrl: state.url }
+            });
         }
 
-        return router.createUrlTree(['/auth/access']);
+        return allowedRoles.includes(role) ? true : router.createUrlTree(['/auth/access']);
     };
 }

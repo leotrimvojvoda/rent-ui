@@ -1,0 +1,247 @@
+/*
+ * Keyway brand layer.
+ *
+ * Loaded last, over the sakai layout styles, so the authenticated app wears the
+ * same design as the public landing page. Colours come from the PrimeNG preset
+ * (`core/theme/keyway-preset.ts`) wherever possible; only the few places that
+ * need the brand literally — the green topbar, the lime accents — hardcode it.
+ */
+
+:root {
+    /* The landing page's cream, so the app and the public site share a ground. */
+    --surface-ground: var(--p-surface-50);
+
+    --keyway-green: #0f4c3a;
+    --keyway-green-light: #1a6b52;
+    --keyway-lime: #d7f26a;
+    --keyway-lime-light: #e4fb84;
+    --keyway-ink: #17201c;
+
+    --keyway-shadow-sm: 0 1px 6px rgba(15, 40, 30, 0.05);
+    --keyway-shadow-md: 0 2px 10px rgba(15, 40, 30, 0.07);
+    --keyway-shadow-lg: 0 10px 24px rgba(15, 40, 30, 0.12);
+    --keyway-shadow-xl: 0 16px 40px rgba(15, 40, 30, 0.16);
+}
+
+/* ---------------------------------------------------------------- typography */
+
+body {
+    font-family: 'Instrument Sans', system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.font-display {
+    font-family: 'Sora', 'Instrument Sans', sans-serif;
+    letter-spacing: -0.5px;
+}
+
+/* The sakai scale is built for a marketing page; app headings sit smaller. */
+h1 {
+    font-size: 2rem;
+}
+h2 {
+    font-size: 1.5rem;
+}
+h3 {
+    font-size: 1.25rem;
+}
+h4 {
+    font-size: 1.125rem;
+}
+
+/* --------------------------------------------------------------------- cards */
+
+.card {
+    border-radius: 16px;
+    box-shadow: var(--keyway-shadow-md);
+    padding: 1.75rem;
+}
+
+:root[class*='app-dark'] .card {
+    box-shadow: none;
+    border: 1px solid var(--surface-border);
+}
+
+/* Section heading used above card groups on dashboards and list pages. */
+.keyway-section-title {
+    font-family: 'Sora', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin: 0 0 1rem;
+}
+
+/* ------------------------------------------------------------------- topbar */
+
+.layout-topbar {
+    background-color: var(--keyway-green);
+    border-bottom: none;
+
+    .layout-topbar-logo {
+        color: #fff;
+        font-family: 'Sora', sans-serif;
+        font-weight: 700;
+        font-size: 1.25rem;
+        letter-spacing: -0.3px;
+
+        /* The sakai logo slot sizes its svg at 3rem; the brand mark is 19px. */
+        svg {
+            width: auto;
+        }
+    }
+
+    .layout-topbar-action {
+        color: rgba(255, 255, 255, 0.85);
+
+        &:hover {
+            background-color: rgba(255, 255, 255, 0.12);
+            color: #fff;
+        }
+    }
+
+    .layout-menu-button {
+        color: rgba(255, 255, 255, 0.85);
+    }
+
+    /* The account button carries a name, so it is a pill rather than a circle. */
+    .keyway-user-button {
+        width: auto;
+        height: 2.5rem;
+        border-radius: 999px;
+        padding: 0 0.9rem;
+        gap: 0.5rem;
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #fff;
+
+        span {
+            display: inline;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+    }
+}
+
+/* The lime rounded square the logo mark sits in, shared with the public nav. */
+.keyway-logo-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--keyway-lime);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+}
+
+/* ---------------------------------------------------------- sidebar and menu */
+
+.layout-sidebar {
+    border-radius: 20px;
+    box-shadow: var(--keyway-shadow-md);
+    padding: 1rem 1.25rem;
+}
+
+:root[class*='app-dark'] .layout-sidebar {
+    box-shadow: none;
+    border: 1px solid var(--surface-border);
+}
+
+.layout-menu {
+    .layout-root-menuitem > .layout-menuitem-root-text {
+        font-size: 0.6875rem;
+        letter-spacing: 0.8px;
+        color: var(--text-color-secondary);
+        margin: 1.25rem 0 0.5rem;
+    }
+
+    ul a {
+        border-radius: 12px;
+        font-weight: 500;
+        padding: 0.65rem 0.85rem;
+
+        &.active-route {
+            background-color: var(--p-primary-50);
+            color: var(--p-primary-700);
+            font-weight: 600;
+        }
+    }
+}
+
+:root[class*='app-dark'] .layout-menu ul a.active-route {
+    background-color: rgba(215, 242, 106, 0.12);
+    color: var(--keyway-lime);
+}
+
+/* --------------------------------------------------------------- breadcrumb */
+
+.layout-main .p-breadcrumb {
+    background: transparent;
+    padding: 0;
+
+    .p-breadcrumb-item-link,
+    .p-breadcrumb-separator {
+        font-size: 0.8125rem;
+    }
+}
+
+/* ------------------------------------------------------------------- footer */
+
+.layout-footer {
+    justify-content: flex-start;
+    color: var(--text-color-secondary);
+    font-size: 0.8125rem;
+}
+
+/* ------------------------------------------------------- brand action styles */
+
+/*
+ * The lime call-to-action from the landing page. Used for the one primary
+ * action on a screen; everything else stays a normal PrimeNG button.
+ */
+.keyway-cta {
+    background: var(--keyway-lime);
+    color: var(--keyway-green);
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+    border: none;
+    border-radius: 12px;
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    transition: background-color 0.15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+
+    &:hover {
+        background: var(--keyway-lime-light);
+        color: var(--keyway-green);
+    }
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+}
+
+/* Green band used for hero areas inside the app (auth panels, empty dashboards). */
+.keyway-band {
+    background: var(--keyway-green);
+    color: #fff;
+    border-radius: 24px;
+    position: relative;
+    overflow: hidden;
+}
+
+.keyway-band-blob {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    pointer-events: none;
+}

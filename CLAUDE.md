@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **Partly stale as of Phase 1.** This repo is being built out against `PLAN.md` (Rent-API car-rental frontend, product name **Keyway**). Phase 1 replaced the auth core: there is no `JwtService` (tokens live in `TokenStorageService` as an access/refresh pair), no `UserService` or profile page, identity comes from `GET /auth/me`, and the routes below are superseded by `src/app/app.routes.ts`. It also introduced the **Keyway design system** — see `PLAN.md` §3 before styling anything. In short: the palette, radii and form fields come from `src/app/core/theme/keyway-preset.ts` (a PrimeNG preset), the shell and `.keyway-*` component classes from `src/assets/layout/_keyway.scss`, brand Tailwind utilities from `@theme` in `src/assets/tailwind.css`; fonts are Sora (display) and Instrument Sans (body); the runtime theme configurator is gone and the brand is fixed, with only light/dark/system remaining. Trust `PLAN.md`, the backend's `API.md`, and the source over the sections marked *Auth flow*, *Role guard*, *Routing*, *Notification bell*, *Theme / dark mode* and *Backend contract* here until Phase 8 rewrites them.
+
 ## Commands
 
 ```bash

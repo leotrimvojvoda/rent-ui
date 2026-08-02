@@ -1,57 +1,84 @@
-<div
-    class="bg-surface-50 dark:bg-surface-950 flex items-center justify-center min-h-screen min-w-screen overflow-hidden">
-    <div class="flex flex-col items-center justify-center">
-        <div
-            style="border-radius: 56px; padding: 0.3rem; background: linear-gradient(180deg, var(--primary-color) 10%, rgba(33, 150, 243, 0) 30%)">
-            <div class="w-full bg-surface-0 dark:bg-surface-900 py-20 px-8 sm:px-20" style="border-radius: 53px">
-                <div class="text-center mb-8">
-                    <div class="text-surface-900 dark:text-surface-0 text-3xl font-medium mb-4">Create Account</div>
-                    <span class="text-muted-color font-medium">Join us today!</span>
-                </div>
+<app-auth-card heading="Create your account" subheading="Renting a car, or renting one out?" widthClass="max-w-xl">
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <!-- The persona is fixed at signup, so it is a deliberate choice, not a dropdown. -->
+        <fieldset class="border-none p-0 m-0 mb-6">
+            <legend class="sr-only">Account type</legend>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                @for (option of roleOptions; track option.value) {
+                <button
+                    type="button"
+                    class="text-left rounded-2xl border-[1.5px] p-4 cursor-pointer transition-colors"
+                    [class]="form.controls.role.value === option.value ? 'border-primary bg-primary-50 dark:bg-surface-800' : 'border-surface bg-surface-0 dark:bg-surface-900 hover:border-primary-200'"
+                    [attr.aria-pressed]="form.controls.role.value === option.value"
+                    (click)="selectRole(option.value)"
+                >
+                    <span class="flex items-center gap-2 mb-1.5">
+                        <i [class]="option.icon" class="text-primary"></i>
+                        <span class="font-semibold text-sm">{{ option.title }}</span>
+                    </span>
+                    <span class="block text-xs text-muted-color leading-relaxed">{{ option.body }}</span>
+                </button>
+                }
+            </div>
+        </fieldset>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label for="firstName"
-                            class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">First
-                            Name</label>
-                        <input pInputText id="firstName" type="text" placeholder="First Name" class="w-full mb-4"
-                            [(ngModel)]="credentials.firstName" />
-                    </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label for="firstName" class="block text-color font-medium text-sm mb-2">First name</label>
+                <input pInputText id="firstName" type="text" maxlength="100" autocomplete="given-name" class="w-full" formControlName="firstName" />
+                <app-field-error [control]="form.controls.firstName" [messages]="{ required: 'Enter your first name.', maxlength: 'Keep this under 100 characters.' }" />
+            </div>
 
-                    <div>
-                        <label for="lastName"
-                            class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">Last
-                            Name</label>
-                        <input pInputText id="lastName" type="text" placeholder="Last Name" class="w-full mb-4"
-                            [(ngModel)]="credentials.lastName" />
-                    </div>
+            <div>
+                <label for="lastName" class="block text-color font-medium text-sm mb-2">Last name</label>
+                <input pInputText id="lastName" type="text" maxlength="100" autocomplete="family-name" class="w-full" formControlName="lastName" />
+                <app-field-error [control]="form.controls.lastName" [messages]="{ required: 'Enter your last name.', maxlength: 'Keep this under 100 characters.' }" />
+            </div>
 
-                    <div class="col-span-1 md:col-span-2">
-                        <label for="email"
-                            class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">Email</label>
-                        <input pInputText id="email" type="email" placeholder="Email address" class="w-full mb-4"
-                            [(ngModel)]="credentials.email" />
-                    </div>
+            <div class="sm:col-span-2">
+                <label for="email" class="block text-color font-medium text-sm mb-2">Email</label>
+                <input pInputText id="email" type="email" autocomplete="email" placeholder="you@example.com" class="w-full" formControlName="email" />
+                <app-field-error [control]="form.controls.email" [messages]="{ required: 'Enter your email address.' }" />
+                <p class="mt-1.5 mb-0 text-xs text-muted-color">We send a verification code here before you can sign in.</p>
+            </div>
 
-                    <div class="col-span-1 md:col-span-2">
-                        <label for="password"
-                            class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Password</label>
-                        <p-password id="password" [(ngModel)]="credentials.password" placeholder="Password"
-                            [toggleMask]="true" styleClass="mb-4" [fluid]="true" [feedback]="false"></p-password>
-                    </div>
+            <div class="sm:col-span-2">
+                <label for="password" class="block text-color font-medium text-sm mb-2">Password</label>
+                <p-password inputId="password" formControlName="password" [toggleMask]="true" [fluid]="true" [feedback]="false" autocomplete="new-password" />
+                <app-field-error [control]="form.controls.password" [messages]="{ required: 'Choose a password.', minlength: 'Use at least ' + minPasswordLength + ' characters.' }" />
 
-                    <div class="col-span-1 md:col-span-2 mt-4">
-                        <p-button label="Sign Up" styleClass="w-full" (click)="onRegister()"
-                            [loading]="loading"></p-button>
-                    </div>
+                @if (!form.controls.password.errors?.['server']) {
+                <p class="mt-1.5 mb-0 text-xs flex items-center gap-1.5" [class]="passwordLongEnough() ? 'text-primary' : 'text-muted-color'">
+                    <i class="pi text-[10px]" [class]="passwordLongEnough() ? 'pi-check-circle' : 'pi-circle'" aria-hidden="true"></i>
+                    At least {{ minPasswordLength }} characters
+                </p>
+                }
+            </div>
 
-                    <div class="col-span-1 md:col-span-2 text-center mt-4">
-                        <span class="text-muted-color">Already have an account? </span>
-                        <a routerLink="/auth/login" class="font-medium no-underline cursor-pointer text-primary">Sign
-                            In</a>
-                    </div>
-                </div>
+            <div class="sm:col-span-2">
+                <label for="confirmPassword" class="block text-color font-medium text-sm mb-2">Confirm password</label>
+                <p-password inputId="confirmPassword" formControlName="confirmPassword" [toggleMask]="true" [fluid]="true" [feedback]="false" autocomplete="new-password" />
+                <app-field-error [control]="form.controls.confirmPassword" [messages]="{ required: 'Repeat your password.', mismatch: 'The two passwords do not match.' }" />
+            </div>
+
+            @if (countdown.active()) {
+            <div class="sm:col-span-2">
+                <p-message severity="warn" styleClass="w-full" [text]="'Too many attempts. Try again in ' + countdown.label() + '.'" />
+            </div>
+            } @else if (formError()) {
+            <div class="sm:col-span-2">
+                <p-message severity="error" [text]="formError()!" styleClass="w-full" />
+            </div>
+            }
+
+            <div class="sm:col-span-2 mt-2">
+                <button type="submit" class="keyway-cta w-full" [disabled]="loading() || countdown.active()">{{ loading() ? 'Creating account…' : 'Create account' }}</button>
             </div>
         </div>
+    </form>
+
+    <div class="mt-6 pt-6 border-t border-surface text-center text-sm">
+        <span class="text-muted-color">Already have an account?</span>
+        <a routerLink="/auth/login" class="font-semibold no-underline ml-1.5 text-primary">Sign in</a>
     </div>
-</div>
+</app-auth-card>

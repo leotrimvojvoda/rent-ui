@@ -1,451 +1,292 @@
-# Angular Template — Feature Implementation Plan
+# Car Rental Frontend — Functional Plan
 
-This document is a step-by-step implementation plan for 10 cross-cutting features to be added to the Angular template. Each feature is self-contained and should be implemented in the order listed, since later features occasionally depend on earlier ones.
+A functional/page-level plan for front-end devs — no code. Verified against the Rent-API backend contract (`API.md` / `BACKEND.md` in the backend repo — keep them at hand; they are authoritative and not vendored here) and this template's source.
 
-The project uses Angular 20 (standalone components, signals, functional guards/interceptors), PrimeNG 20, Tailwind v4, and communicates with a Spring Boot backend at `http://localhost:8080/api/v1`.
+## 1. Context
 
----
+`rent-ui` is the Angular 20 (PrimeNG + Tailwind v4) frontend of the **Rent-API** Spring Boot car-rental marketplace, product name **Keyway**. Base URL `http://localhost:8080/api/v1` (configured in `environment.development.ts`).
 
-## Feature 1 — Toast Service + HTTP Error Interceptor
+It grew out of the sakai template, which contributed the app shell (`AppLayout` — topbar/sidebar/breadcrumbs/footer), the interceptor and toast/confirm plumbing, and light/dark/system theming. Phase 1 replaced the template's auth core with the real contract and re-skinned the whole app in the Keyway design system (§3); what remains of the template is structure, not appearance.
 
-**Goal:** Provide a global toast notification system and automatically surface HTTP errors as toasts so that individual components don't need to handle generic error display.
+Two personas, chosen at signup and fixed thereafter:
 
-### 1.1 Toast Service
+- **CLIENT** — browses the public catalog, requests rentals, views/cancels own rentals.
+- **OWNER** — creates exactly one company, manages a fleet (cars, images, price tiers, publish state), processes rental requests through a status workflow.
+- **ADMIN** exists in the `UserResponse.role` enum but has no endpoints — no admin UI. If `/auth/me` ever returns ADMIN, treat as an unsupported role (neutral "no workspace" state; do not crash).
 
-Create `src/app/core/services/toast.service.ts`.
+Confirmed product decision: **the catalog is public** — anonymous visitors browse/search and view car detail; login is required only to book.
 
-- Injectable, provided in `root`.
-- Wrap PrimeNG's `MessageService` (from `primeng/api`).
-- Expose convenience methods: `success(summary, detail?)`, `error(summary, detail?)`, `info(summary, detail?)`, `warn(summary, detail?)`.
-- Each method calls `messageService.add(...)` with the appropriate `severity`, a sensible default `life` of 5 000 ms, and a `key` of `'global'`.
-- This thin wrapper exists so the rest of the codebase never imports PrimeNG's `MessageService` directly; if the toast library is ever swapped, only this file changes.
+## 2. Backend contract essentials (verified against API.md)
 
-### 1.2 HTTP Error Interceptor
+- **Auth endpoints**: `POST /auth/signup` (always 202, enumeration-safe), `POST /auth/verify-email`, `POST /auth/resend-verification` (202), `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout` (204, revokes all refresh tokens), `GET /auth/me`, `POST /auth/password-reset/request` (always 202), `POST /auth/password-reset/confirm` (revokes all refresh tokens). Login/refresh return `{ accessToken, refreshToken, tokenType, expiresInSeconds }`.
+- **Tokens**: access token ~15 min; refresh token 30 days, **rotating** — the presented refresh token is revoked on use, so the new pair must always be stored, and concurrent refreshes must be serialized (a second refresh with the old token gets `401 INVALID_REFRESH_TOKEN`).
+- **Identity**: derive user id, name, email, role, and `enabled` from `GET /auth/me`. JWT claim names are not part of the documented contract — do not build logic on decoded claims beyond optional expiry checks.
+- **Paging envelope** on every collection: `{ data, page, size, totalPages, totalElements }`; `page` is 0-based, `size` defaults 20, capped at 100.
+- **Error envelope** everywhere: `{ code, message, timestamp, path, fieldErrors? }`. **Branch on `code`, never on `message`.** `fieldErrors` (`{ field, message }[]`) only on `VALIDATION_FAILED`.
+- **404 vs 403**: a resource that exists but isn't yours is a **404** — never present a 404 as "deleted".
+- **Rate limit**: `/auth/*` only, 10 req/min per caller → `429 TOO_MANY_REQUESTS` with `Retry-After` (seconds).
+- **Timestamps**: ISO-8601 UTC instants both ways. Rentals need date **and time**; display in the browser's local timezone, convert to UTC on submit.
+- **Money**: JSON number with two decimals. Display with fixed two decimals; never recompute totals client-side (server sends `totalPrice`). Currency symbol is not in the contract (assume EUR "€" until confirmed).
+- **Pricing**: computed and snapshotted server-side (`dailyPrice`, `totalDays`, `totalPrice`); the client never sends a price. Day count: started 24-hour block from pickup with an exclusive 1-hour grace (24 h = 1 day; 25 h = 2 days). Catalog shows `dailyPriceFrom`.
+- **Rental states**: `PENDING → APPROVED → ACTIVE → COMPLETED`; `REJECTED` (owner, from PENDING); `CANCELLED` (client, from PENDING/APPROVED, only before pickup); `EXPIRED` (job, PENDING requests whose start arrives undecided). `PENDING/APPROVED/ACTIVE` block the car.
+- **Owner gating**: `/cars*` and `/company/rentals*` return `409 COMPANY_REQUIRED` until `POST /companies` succeeds; `GET /companies/me` itself 409s when no company exists. One company per owner (`409 COMPANY_ALREADY_EXISTS`).
+- **Car model** (owner side): make, model, modelYear, licensePlate (unique per company, `409 DUPLICATE_LICENSE_PLATE`, compared ignoring case/spaces/hyphens), defaultDailyPrice, status (`ACTIVE / IN_MAINTENANCE / RETIRED`), `published` flag, price tiers, images. **No fuel/transmission/seats/category** — no filters or fields for them anywhere.
+- **Public visibility**: only `published = true AND status = ACTIVE` cars appear publicly. Public DTOs never contain licence plate, car status, or company contact details. A hidden car is a public 404.
+- **Public search** `POST /public/cars/filter`: body `{ cityId?, make?, model?, minDailyPrice?, maxDailyPrice?, availableFrom?, availableTo?, sort? }` with `sort` enum `PRICE_ASC | PRICE_DESC | NEWEST | OLDEST` **in the body**; `page`/`size` as query params. Availability dates must be sent **both or neither**.
+- **Images**: `POST /cars/{carId}/images`, multipart part `file`, one file per request, JPEG/PNG/WebP, ≤ 10 MB. Errors: `400 UNSUPPORTED_IMAGE_TYPE` / `EMPTY_UPLOAD`, `413 PAYLOAD_TOO_LARGE`, `502 STORAGE_UNAVAILABLE` (nothing saved — retry). `DELETE /cars/{carId}/images/{imageId}`. Lowest `position` = primary; **no reorder endpoint**.
+- **Price tiers**: `PUT /cars/{carId}/price-tiers` replaces the whole set. `minDays` required, `maxDays` **optional (open-ended tier)**, `dailyPrice` required; no overlapping brackets (`409 OVERLAPPING_PRICE_TIERS`). Days not covered by any tier fall back to `defaultDailyPrice`.
+- **Notifications**: `GET /notifications` (paged, `unreadOnly` param), `GET /notifications/unread-count`, `POST /notifications/{id}/read`, `POST /notifications/read-all`. Types: `RENTAL_REQUESTED, RENTAL_APPROVED, RENTAL_REJECTED, RENTAL_CANCELLED, RENTAL_EXPIRED, RENTAL_PICKUP_REMINDER, RENTAL_RETURN_REMINDER`; each carries a `rentalId`. Activation and completion produce no notification. **No websocket/SSE — poll.**
+- **Different rental views per persona**, neither a superset: client's `RentalResponse` includes company contact details; owner's `CompanyRentalResponse` includes the client's name/email and the car's licence plate.
+- **CORS**: `localhost:4200` must be added to the backend's `CORS_ALLOWED_ORIGINS` for local dev (document in README).
 
-Create `src/app/core/interceptors/error.interceptor.ts`.
+### Known documentation ambiguities — confirm with backend before/during Phase 5
 
-- Functional `HttpInterceptorFn` (same pattern as the existing `authInterceptor`).
-- Pipe the response through `catchError`.
-- For `0` (network error): toast "Network error — please check your connection".
-- For `403`: toast "You do not have permission to perform this action".
-- For `404`: toast "The requested resource was not found".
-- For `500+`: toast "Something went wrong on the server".
-- **Do not handle `401` here** — that is Feature 2's responsibility.
-- After toasting, re-throw the error so callers can still handle it locally if they want.
+1. `CompanyResponse.city` / `PublicCompanyResponse.city`: schema says a `CityResponse` object; JSON examples show a plain string. Model defensively; verify against a live response.
+2. `CompanyResponse` carries no `cityId`, but `PUT /companies/me` requires one → the edit form must resolve the current city against `GET /cities`.
+3. Maximum number of price tiers per car: not documented. Enforce only non-overlap client-side; let the server reject the rest.
+4. Full password policy: contract shows only "at least 10 characters". Mirror min-10 client-side; render server `fieldErrors` as the source of truth.
+5. Currency symbol/locale for money display.
+6. Maximum images per car: not documented.
 
-### 1.3 Wire It Up
+## 3. Design system — Keyway
 
-- In `app.config.ts`, add `MessageService` to the `providers` array.
-- In `app.config.ts`, add `errorInterceptor` to the `withInterceptors([...])` array **after** `authInterceptor`.
-- In `app.layout.html`, add a single `<p-toast key="global" />` inside the layout shell so toasts render above everything.
-- Also add `<p-toast key="global" />` to `app.component.html` so toasts work on pages outside AppLayout (login, register, etc.).
+The whole product, public and authenticated, is built in one visual language, taken from the **Keyway Web Landing** design (Claude Design project `7147e20e-92bb-4f6b-ae5c-75a8ba7ca491`). Nothing in the phases below is designed page-by-page: every screen composes the pieces in this section. **Do not introduce new colours, radii, shadows or fonts** — if a screen seems to need one, extend this section first.
 
-### 1.4 Refactor Existing Error Handling
+### 3.1 Where the system lives
 
-- In `profile.ts`, replace the inline success/error message variables with calls to `toastService.success(...)` / `toastService.error(...)`. Remove the HTML that displays those messages.
-- In `login.ts`, replace the inline `errorMessage` display with `toastService.error(...)`. Remove the HTML error block.
-- In `register.ts`, same treatment.
+| Concern | File | Notes |
+|---|---|---|
+| PrimeNG palette, radii, form fields | `src/app/core/theme/keyway-preset.ts` | A `definePreset` over Aura. Every PrimeNG component and the sakai layout read `--p-*` from here — this is why buttons, inputs, dialogs, toasts and the sidebar are all on-brand without per-page work. |
+| Brand layer over the app shell | `src/assets/layout/_keyway.scss` | Topbar, sidebar, menu, card, footer, typography, plus the `.keyway-*` component classes. Loaded last in `layout.scss`. |
+| Tailwind brand utilities | `src/assets/tailwind.css` (`@theme`) | `bg-keyway-green`, `text-keyway-subtle`, `font-display`… Used by the public site, which is built in Tailwind rather than PrimeNG components. |
+| Fonts | `src/index.html` | **Sora** (display: headings, logo, CTAs) and **Instrument Sans** (body). |
 
----
+The runtime theme configurator (preset / primary colour / surface pickers) has been **removed** — the brand is fixed. Only light / dark / system remains, in Settings.
 
-## Feature 2 — Auth 401 Handling + `currentUser` Signal
+### 3.2 Palette
 
-**Goal:** Automatically redirect to login on 401 responses and provide a single reactive `currentUser` signal that any component can read without making an API call.
+| Token | Value | Use |
+|---|---|---|
+| Brand green | `#0f4c3a` | Topbar, hero and CTA bands, primary text accents. PrimeNG `primary.700`. |
+| Green (dark mode accent) | `primary.300` | On dark surfaces the deep green goes muddy; the lighter step carries the accent. |
+| Lime | `#d7f26a` (hover `#e4fb84`) | **The** call-to-action colour, always with green text on it. One primary action per screen. |
+| Cream | `#f7f6f3` | Page ground, light mode (`surface.50`). |
+| Ink / body / muted | `#17201c` / `#3a453f` / `#66716b` | Text ramp. |
+| Warm neutrals | `surface.0–950` | Cards, borders, dark-mode surfaces. Never grey-blue — the neutrals are warm. |
 
-### 2.1 Extend the Error Interceptor (or create a dedicated 401 interceptor)
+### 3.3 Component vocabulary
 
-Add 401 handling to `error.interceptor.ts` (or create a separate `src/app/core/interceptors/unauth.interceptor.ts` — either is fine, but keeping it in the error interceptor is simpler).
+- **Card** — `.card`: white (`surface.900` in dark), 16 px radius, `--keyway-shadow-md`, no border in light; border and no shadow in dark. The unit every panel is built from.
+- **Lime CTA** — `.keyway-cta`: Sora, bold, 12 px radius. The single primary action on a screen. Everything else is a normal PrimeNG button (`severity="secondary"` / text).
+- **Green band** — `.keyway-band` + `.keyway-band-blob`: the hero treatment. Used for the landing hero, the dashboard welcome, the CTA band. Decorative blobs are `rgba(255,255,255,0.05)` circles.
+- **Logo mark** — `.keyway-logo-mark`: 34 px lime rounded square holding the car glyph. Identical in the public nav, the app topbar, the auth cards and the status pages.
+- **Section title** — `.keyway-section-title`: Sora 700, `-0.5px` tracking. Above card groups.
+- **Field chrome** — `.keyway-field`: the bordered box with a leading icon that wraps a stripped-back PrimeNG control (see the landing search bar). Use it wherever an input needs the landing-page treatment; plain PrimeNG fields are fine everywhere else.
+- **Status page** — `<app-status-page>`: the shared shell for 404 / access-denied / error, and the same card treatment the auth screens use.
+- **Empty state** — `<app-empty-state>`: icon chip, Sora title, muted line, optional lime CTA.
+- **Card grid** — 4 columns at `xl`, 2 at `sm`, 1 below; 20 px gap; cards lift 3 px on hover with the `--keyway-shadow-lg`.
 
-- On `401`: call `jwtService.destroyToken()`, call `router.navigate(['/auth/login'])`, toast "Session expired — please log in again".
-- Ensure this runs **before** the generic error handler so 401 is never double-toasted.
+### 3.4 Rules for new screens
 
-### 2.2 `currentUser` Signal
+1. Page ground is the cream/`surface.50` ground; content sits on `.card`s. Never a card on a card.
+2. Headings are Sora via `<h1>`–`<h4>` or `.keyway-section-title`; body copy is Instrument Sans at 14–15 px with `1.5`+ line height.
+3. One lime CTA per screen. Destructive actions are PrimeNG `severity="danger"`, never lime.
+4. Every screen must work in dark mode — check it before calling a page done. Brand green and lime hold in both; surfaces swap.
+5. Every screen must work down to 360 px. Tables become stacked cards on mobile (see §6, Phase 8).
+6. Loading is skeletons shaped like the content (grey blocks at the real dimensions), never a spinner — see the landing "Popular near you" band.
+7. Decorative SVG gets `aria-hidden="true"`; icon-only buttons get an `aria-label`.
 
-Extend `src/app/core/services/auth.service.ts`:
+## 4. Global UX conventions (apply to every page)
 
-- Add a private `WritableSignal<UserResponse | null>` called `_currentUser`.
-- Expose a public readonly `currentUser = this._currentUser.asReadonly()`.
-- Add a computed signal `isLoggedIn = computed(() => this._currentUser() !== null)` (replaces the existing `isLoggedIn()` method).
-- Add a method `loadCurrentUser()` that reads the `id` from the JWT, calls `userService.getById(id)`, and sets `_currentUser`.
-- On `login()` success, after saving the token, call `loadCurrentUser()`.
-- On `logout()`, set `_currentUser` to `null`.
-- Add an `initialize()` method: if a token exists in storage, call `loadCurrentUser()`. Call this from `APP_INITIALIZER` in `app.config.ts` so the user is populated before the first route resolves.
+- **Loading**: global top progress bar (existing `LoadingService`) stays; list/detail pages additionally show skeletons on first load, not spinners.
+- **Empty states**: existing `EmptyState` component with a contextual action (e.g. "No cars match — clear filters").
+- **Errors**: a single error-code → user-copy map; unknown codes fall back to the server `message`. `VALIDATION_FAILED` never toasts — its `fieldErrors` bind to form controls (unmatched errors in a form-level summary). Business 409s (`CAR_NOT_AVAILABLE`, `INVALID_RENTAL_TRANSITION`, etc.) are handled inline by the owning page; the interceptor toasts only errors nobody handled.
+- **Dates**: display in local time with explicit format incl. time; submit as UTC ISO instants.
+- **Money**: always two decimals; totals always the server's numbers.
+- **Status badges**: one shared rental-status badge and one car-status badge, reused everywhere, drawn from the brand palette (§3.2) rather than generic traffic-light colours — PENDING amber `#e8a13a` on mint, APPROVED brand green outline, ACTIVE brand green solid, COMPLETED neutral surface, REJECTED/CANCELLED muted red, EXPIRED muted grey. APPROVED and ACTIVE differ by fill, not hue, so the pair reads as one progression.
+- **Pagination**: shared pager bound to the backend envelope; page state in URL query params on list pages.
+- **404 handling**: missing/hidden resource routes to the not-found page (or an in-page "no longer available" state on public car detail), never a raw toast alone.
 
-### 2.3 Update Consumers
+## 5. Page inventory and acceptance criteria
 
-- `dashboard.ts`: replace `jwtService.getAttribute('id')` with `authService.currentUser()?.firstName`.
-- `profile.ts`: pre-fill the form from `authService.currentUser()` instead of calling `userService.getById(...)` separately. After a successful update, refresh `currentUser` by calling `authService.loadCurrentUser()`.
-- `app.topbar.html`: display the user's name/avatar from `authService.currentUser()`.
-- `auth.guard.ts`: use `authService.isLoggedIn()` (the signal-based version).
+### 5.1 Public area (no auth)
 
----
+Shell: `AppPublicLayout` — green nav (logo mark, Fleet / How it works / Reviews, theme toggle, Sign in + Sign up, or the user's name + Dashboard + Log out when authenticated) over a cream ground, with the multi-column brand footer. Built in Phase 1.
 
-## Feature 3 — Notification Bell
+**Landing — `/`** *(built in Phase 1)*: hero, search card (city + pick-up/return date-time → serialises to `/cars` query params), "Popular near you" (live `POST /public/cars/filter`, `size=4`, skeletons, hides itself when empty or unreachable), "How it works", testimonials (**placeholder copy — see §7**), CTA band. This page is the reference implementation of §3.
 
-**Goal:** Add a notification bell icon in the topbar that shows a badge count and a dropdown panel listing recent notifications. This is a **frontend-only scaffold** — the actual notification data will come from a backend endpoint that each app will implement.
+**Catalog — `/` (also `/cars`)**
+- Filter bar: city dropdown (from `GET /cities`, label "Name (COUNTRY)"), make and model text inputs, min/max daily price, availability window (date-time range picker), sort dropdown (Price ↑, Price ↓, Newest, Oldest).
+- Availability inputs validate both-or-neither and from < to; helper text "showing only cars free for this window" when set.
+- Results: responsive card grid — primary image (placeholder when null), make model year, "from {dailyPriceFrom}/day", company name + city. Card click → detail.
+- Search on explicit "Search" and on sort/page change; filters and page serialize to URL query params (shareable/back-safe); page resets to 0 on filter change.
+- Shared pager; skeleton cards while loading; empty state with "clear filters".
+- *Acceptance*: an anonymous user can find a car by city + dates and reach its detail; reload preserves filters; invalid price range and half-open date range blocked client-side.
 
-### 3.1 Notification Model
+**Car detail — `/cars/:id`**
+- From `GET /public/cars/{carId}`. Gallery from `imageUrls` (first = primary; placeholder when empty), make/model/year, company block (name, description, city, address — no contact details, per contract), pricing panel: `defaultDailyPrice`, "from `dailyPriceFrom`", tier table ("3–6 days → 30.00/day", open-ended "7+ days" when `maxDays` absent, plus a row for other durations at the default price).
+- Booking entry: date-time range preselected from catalog filters (carried via query params) + "Request booking" CTA.
+  - Anonymous → redirect to `/auth/login?returnUrl=<this page incl. dates>`.
+  - Logged-in CLIENT → booking flow (5.3).
+  - Logged-in OWNER → CTA replaced by a note ("Bookings are for client accounts") — `POST /rentals` is CLIENT-only.
+- 404 (unpublished/retired/unknown) → in-page "This car is no longer available" state with catalog link.
+- *Acceptance*: every price row renders with two decimals; a car unpublished between catalog and detail shows the friendly unavailable state, not an error toast.
 
-Create `src/app/core/models/notification.model.ts`:
+### 5.2 Auth area (`/auth/*`, standalone full-page card shell — same treatment as the status pages)
 
+**Login — `/auth/login`**
+- Email + password. Success: store token pair, load `/auth/me`, redirect to `returnUrl` else `/dashboard` (owner-company gate may bounce to `/company/setup`).
+- Branches by `code`: `INVALID_CREDENTIALS` → inline form error (no toast/logout side effects); `ACCOUNT_NOT_VERIFIED` → `/auth/verify-email` with email prefilled; `ACCOUNT_DISABLED` → inline message; `429` → inline countdown from `Retry-After`, submit disabled.
+- Links: register, forgot password, "browse cars without an account".
+
+**Register — `/auth/register`**
+- First/last name (≤100), email, password + confirm, prominent **role choice** ("I want to rent cars" = CLIENT / "I run a rental company" = OWNER) as two selectable cards, CLIENT preselected.
+- Client-side password validation: min 10 chars + live requirement hints (server authoritative via `fieldErrors`).
+- Signup always returns 202 with an identical body — the UI cannot detect an existing email; always navigate to `/auth/verify-email` with email prefilled and copy "If this address is new, a verification code has been emailed to it."
+- `VALIDATION_FAILED` → field binding. 429 as on login.
+
+**Verify email — `/auth/verify-email`**
+- Email (prefilled, editable) + 6-digit code input (auto-advance boxes). Success → route to login (verification does not log in).
+- Resend with local cooldown (~60 s); note that resending invalidates the previous code.
+- 409 branches: `INVALID_VERIFICATION_CODE` (inline), `VERIFICATION_CODE_EXPIRED` and `TOO_MANY_VERIFICATION_ATTEMPTS` (inline + emphasize resend). 429 countdown.
+
+**Forgot password — `/auth/forgot-password`** — email only; always 202 → confirmation with link to reset page.
+
+**Reset password — `/auth/reset-password`** — email (prefilled if from forgot), 6-digit code, new password + confirm. Success → "Password changed — please log in" → login (confirm revokes all refresh tokens). 409 branches as verify-email.
+
+**Keep**: access-denied (`/auth/access`), error, not-found pages.
+
+### 5.3 Client area (authGuard + role CLIENT, inside AppLayout)
+
+**Booking flow — from car detail (dialog or `/cars/:id/book` step page)**
+- Pickup and return date-time (local → UTC). Client-side: return after pickup, pickup in the future.
+- Non-binding estimate panel: day count via the documented billing rule + matching tier price, labelled "Estimate — final price is set when the request is created."
+- `POST /rentals` → on 201 show confirmation with the **server's** snapshot (PENDING, dailyPrice, totalDays, totalPrice, company name/city) and links to rentals. Explain PENDING and that an undecided request expires at pickup time.
+- Branches: `400 INVALID_RENTAL_PERIOD` (inline on dates), `409 CAR_NOT_AVAILABLE` (inline "try different dates", keep form), `404` (car vanished → unavailable state).
+
+**My rentals — `/rentals`**
+- `GET /rentals` paged, newest first; status filter tabs ("All" + the 7 statuses, one at a time — what the API accepts). Rows: car, company + city, start–end (local), total price, status badge. Click → detail. Empty state → "Browse cars".
+
+**Rental detail — `/rentals/:id`**
+- Full `RentalResponse`: status with plain-language explanation, dates, dailyPrice × totalDays = totalPrice breakdown, car summary, company block **with contact email/phone and address** (where the client learns pickup contact).
+- Cancel only when PENDING/APPROVED **and** pickup in the future (hide otherwise); confirm dialog; on `409` (`RENTAL_ALREADY_STARTED` or transition conflict) explain and refetch. 404 → not-found.
+
+**Client dashboard — `/dashboard`** — next upcoming rental, active rental card, counts by status, "Browse cars" CTA (from one `GET /rentals` first page).
+
+### 5.4 Owner area (authGuard + role OWNER, inside AppLayout)
+
+**Company gate (guard behaviour)**
+- On first entry to any owner route, resolve `GET /companies/me` once and cache: 200 → proceed; `409 COMPANY_REQUIRED` → redirect to `/company/setup`. `/company/setup` reachable only by owners **without** a company (others → `/company`).
+
+**Company setup — `/company/setup`**
+- Onboarding framing ("Create your company to start listing cars"). Form: name (≤150), description (≤2000, optional), city (from `GET /cities`), address (≤255), contact email, contact phone. Success → `/fleet` with "add your first car" prompt. `409 COMPANY_ALREADY_EXISTS` → refresh gate cache → `/company`.
+
+**Company profile — `/company`**
+- View + edit (`GET/PUT /companies/me`); current city preselected (see §2 ambiguities 1–2). Note that the public catalog shows name/city/address/description only; contact details appear to clients on their rental views.
+
+**Fleet list — `/fleet`**
+- `GET /cars` paged table: make/model/year, plate, default price, car-status badge, published badge; actions: edit, publish/unpublish (optimistic row update), delete.
+- Delete confirm copy covers both outcomes — "a never-rented car is deleted with its photos; a car with rental history is retired and unpublished instead". Refetch after.
+- Visibility hint: a published car that is `IN_MAINTENANCE`/`RETIRED` shows "not publicly visible" (public requires published **and** ACTIVE).
+- Empty state → "Add your first car".
+
+**Car create — `/fleet/new`; car edit — `/fleet/:id`**
+- Create: make (≤80), model (≤80), model year (sensible bounds), plate (≤20, hint that uniqueness ignores case/spaces/hyphens), default daily price (> 0, two decimals), status select. `409 DUPLICATE_LICENSE_PLATE` → inline on plate field. On 201 → edit page.
+- Edit adds three sections:
+  - **Images**: thumbnail grid by `position`; lowest labelled "Primary — shown in the catalog"; upload (one file per request; client-side pre-check JPEG/PNG/WebP ≤ 10 MB; per-file progress; multiple files sequential). Delete with confirm. Branches: `UNSUPPORTED_IMAGE_TYPE`, `EMPTY_UPLOAD`, `413`, `502` ("nothing saved — try again"). State plainly: no reordering; to change the primary photo, delete and re-upload in order.
+  - **Price tiers**: editable rows (min days, max days *optional* — empty = "and up", daily price); open-ended allowed on at most the last row; validation: minDays ≥ 1, maxDays ≥ minDays, no overlaps, sorted display; preview lines ("3–6 days → 30.00/day", "7+ days → 25.00/day", "all other durations → default 40.00/day"). Save replaces the set; `409 OVERLAPPING_PRICE_TIERS` → form-level error. Removing all rows clears tiers.
+  - **Publish panel**: current state, publish/unpublish button, visibility rule copy.
+
+**Rental requests — `/company/rentals`**
+- `GET /company/rentals` paged, newest first, status tabs (land on PENDING — the actionable queue). Rows: car (make/model + plate), client name, start–end, total price, badge, quick actions per state.
+- Actions by status: PENDING → Approve / Reject; APPROVED → Activate ("car handed over"); ACTIVE → Complete ("car returned"); terminal → none. Each: confirm dialog → `POST /company/rentals/{id}/{action}` → update from response. `409 INVALID_RENTAL_TRANSITION` → informational toast + refetch.
+- Approve confirm notes the car becomes held for those dates; Reject confirm notes the client is notified.
+
+**Rental request detail — `/company/rentals/:id`**
+- Full `CompanyRentalResponse`: client name + email, car incl. plate, dates, price breakdown, created time, status timeline (requested → approved → picked up → returned, with dead-ends for rejected/cancelled/expired), same guarded actions.
+
+**Owner dashboard — `/dashboard`** — pending-request count (deep-link to PENDING-filtered list), active rentals, fleet size + published count (from `GET /cars` `totalElements` — approximate, no stats endpoint), "Add car" CTA, company card.
+
+### 5.5 Shared authenticated pieces
+
+- **Dashboard `/dashboard`** — one route, role-switched content.
+- **Notification bell** (topbar): badge from `unread-count` polled every 60 s (pause when tab hidden; refresh on focus and after login); popover loads first page of `GET /notifications` on open — type icon, message, relative time, unread dot; click marks read + deep-links via `rentalId` to `/rentals/:id` (CLIENT) or `/company/rentals/:id` (OWNER); "mark all read"; link to full page.
+- **Notifications page `/notifications`** — paged list with "unread only" toggle, same row behaviour.
+- **Menu / topbar**: sidebar by role (`app.menu.ts` currently has a static model — make it role-switched) — CLIENT: Dashboard, Browse cars, My rentals, Notifications, Settings; OWNER: Dashboard, Company, Fleet, Rental requests, Notifications, Settings. Topbar user menu: name + role label, Settings, Logout. Logout calls `POST /auth/logout` (best-effort — clear local session even if it fails), clears tokens + user signal, stops polling, routes to `/`.
+- **Settings `/settings`**: light/dark/system switcher plus a read-only account card. The template's runtime theme configurator (preset / primary colour / surface pickers) is **removed** — the brand is fixed by §3. Do **not** add change-password (no logged-in endpoint; logout + forgot-password is the path).
+- **Removed template pages**: profile edit (no `PUT /users/{id}` in the contract), mock notification wiring, template-only auth calls.
+
+## 6. Implementation phases
+
+Dependencies: Phase 1 blocks everything; 2 blocks 4–7; 3 blocks 4; 5 blocks 6. Phase 3 can run in parallel with 2 (public pages need no auth).
+
+```mermaid
+graph LR
+    P1[1 Foundation] --> P2[2 Auth pages]
+    P1 --> P3[3 Public catalog]
+    P2 --> P4[4 Client booking]
+    P3 --> P4
+    P2 --> P5[5 Owner company+fleet]
+    P5 --> P6[6 Owner rental workflow]
+    P2 --> P7[7 Notifications]
+    P4 --> P8[8 Polish]
+    P6 --> P8
+    P7 --> P8
 ```
-NotificationItem {
-  id: string
-  title: string
-  message: string
-  read: boolean
-  createdAt: string      // ISO date
-  type: 'info' | 'warning' | 'error' | 'success'
-  link?: string          // optional router link to navigate on click
-}
-```
-
-### 3.2 Notification Service
-
-Create `src/app/core/services/notification.service.ts`:
-
-- Injectable, provided in `root`.
-- `notifications = signal<NotificationItem[]>([])`.
-- `unreadCount = computed(() => this.notifications().filter(n => !n.read).length)`.
-- `loadNotifications()` — GET `/notifications` → sets the signal. *(Each app will implement this endpoint; for now the service is ready.)*
-- `markAsRead(id: string)` — PUT `/notifications/{id}/read` → updates the local signal.
-- `markAllAsRead()` — PUT `/notifications/read-all` → updates the local signal.
-
-### 3.3 Notification Bell Component
-
-Create `src/app/features/notifications/notification-bell.ts` (standalone component).
-
-- An icon button (`pi pi-bell`) with a PrimeNG `Badge` showing `unreadCount()`.
-- On click, toggle an `OverlayPanel` (or `Popover`) listing the most recent notifications.
-- Each item shows title, relative time (e.g. "5 min ago"), and a colored dot by type.
-- A "Mark all as read" link at the top of the panel.
-- Clicking an item calls `markAsRead(id)` and navigates to `item.link` if present.
-
-### 3.4 Wire It Up
-
-- Add `<app-notification-bell />` to `app.topbar.html` next to the existing dark-mode toggle.
-- Call `notificationService.loadNotifications()` in the topbar's `ngOnInit` (or from the `APP_INITIALIZER` after the user is loaded).
-
----
-
-## Feature 4 — Global Loading Bar
-
-**Goal:** Show a slim progress bar at the very top of the page while any HTTP request is in flight.
-
-### 4.1 Loading Service
-
-Create `src/app/core/services/loading.service.ts`:
-
-- Injectable, provided in `root`.
-- Private `activeRequests = signal(0)`.
-- `isLoading = computed(() => this.activeRequests() > 0)`.
-- `start()` → increment `activeRequests`.
-- `stop()` → decrement (never below 0).
-
-### 4.2 Loading Interceptor
-
-Create `src/app/core/interceptors/loading.interceptor.ts`:
-
-- Functional `HttpInterceptorFn`.
-- Call `loadingService.start()` before passing the request.
-- In `finalize()` (runs on both success and error), call `loadingService.stop()`.
-
-### 4.3 Register the Interceptor
-
-- In `app.config.ts`, add `loadingInterceptor` to `withInterceptors([...])` — put it **first** so it wraps everything.
-
-### 4.4 Display the Bar
-
-- In `app.component.html` (not the layout — we want it on every page), add a PrimeNG `<p-progressbar>` (or a simple CSS bar with an animation class) at the very top.
-- Use `@if (loadingService.isLoading())` to conditionally show it.
-- Style: `position: fixed; top: 0; left: 0; width: 100%; z-index: 9999; height: 3px`. Use an indeterminate/animated mode.
-
----
-
-## Feature 5 — Breadcrumbs
-
-**Goal:** Render a breadcrumb trail on every authenticated page, driven by route data.
-
-### 5.1 Route Data Convention
-
-For each route in `app.routes.ts`, add a `data` property:
-
-```ts
-{ path: '', component: Dashboard, data: { breadcrumb: 'Home' } }
-{ path: 'profile', component: Profile, data: { breadcrumb: 'Profile' } }
-{ path: 'settings', component: Settings, data: { breadcrumb: 'Settings' } }
-```
-
-### 5.2 Breadcrumb Service
-
-Create `src/app/core/services/breadcrumb.service.ts`:
-
-- Injectable, provided in `root`.
-- Inject `Router` and `ActivatedRoute`.
-- Listen to `router.events` (filter for `NavigationEnd`).
-- Walk the `ActivatedRoute` tree, collecting each segment's `data.breadcrumb`.
-- Expose `breadcrumbs = signal<{ label: string, url: string }[]>([])`.
-
-### 5.3 Breadcrumb Component
-
-Create `src/app/core/layout/component/app.breadcrumb.ts` (standalone).
-
-- Inject `BreadcrumbService`.
-- Render PrimeNG's `<p-breadcrumb [model]="breadcrumbService.breadcrumbs()" [home]="home" />`.
-- `home` item: icon `pi pi-home`, routerLink `/`.
-
-### 5.4 Wire It Up
-
-- Add `<app-breadcrumb />` in `app.layout.html` just above the `<router-outlet>`, inside the content area.
-
----
-
-## Feature 6 — Role Guard
-
-**Goal:** Protect routes so only users with specific roles can access them.
-
-### 6.1 Create the Guard
-
-Create `src/app/core/guards/role.guard.ts`:
-
-- Export a factory function `roleGuard(...allowedRoles: string[]): CanActivateFn`.
-- Inside the returned function: read the JWT payload's `roles` array from `jwtService.getAttribute('roles')`.
-- If the user has at least one of the `allowedRoles`, allow access.
-- Otherwise, navigate to `/auth/access` (the existing 403 page) and return `false`.
-
-### 6.2 Usage Convention
-
-Document in CLAUDE.md how to use it:
-
-```ts
-{
-  path: 'admin',
-  loadComponent: () => import('./features/admin/admin.ts'),
-  canActivate: [roleGuard('ADMIN')]
-}
-```
-
-No routes need the role guard right now — this is purely infrastructure for apps that extend the template.
-
----
-
-## Feature 7 — Confirmation Dialog Service
-
-**Goal:** Provide a programmatic way to show "Are you sure?" dialogs, backed by PrimeNG's `ConfirmationService`.
-
-### 7.1 Confirmation Service Wrapper
-
-Create `src/app/core/services/confirmation.service.ts`:
-
-- Injectable, provided in `root`.
-- Inject PrimeNG's `ConfirmationService`.
-- Expose `confirm(options: { message: string, header?: string, icon?: string, acceptLabel?: string, rejectLabel?: string }): Promise<boolean>`.
-- Internally, call `confirmationService.confirm(...)`, resolve the promise with `true` on accept, `false` on reject.
-
-### 7.2 Wire It Up
-
-- In `app.config.ts`, add PrimeNG's `ConfirmationService` to `providers`.
-- In `app.layout.html`, add `<p-confirmDialog />`.
-- In `app.component.html`, add `<p-confirmDialog />` (for pages outside the layout).
-
-### 7.3 Example Usage
-
-Add a confirmation step to the **logout** flow in `app.topbar.ts`:
-
-```ts
-async logout() {
-  const confirmed = await confirmationService.confirm({
-    message: 'Are you sure you want to log out?',
-    header: 'Confirm Logout'
-  });
-  if (confirmed) {
-    authService.logout();
-    router.navigate(['/auth/login']);
-  }
-}
-```
-
----
-
-## Feature 8 — Page Title Service
-
-**Goal:** Automatically set the browser tab title based on the current route.
-
-### 8.1 Route Data Convention
-
-Reuse the `breadcrumb` data already added in Feature 5. The page title will be `"{breadcrumb} | AppName"` (or just `"AppName"` for the root).
-
-### 8.2 Title Strategy
-
-Create `src/app/core/services/page-title.strategy.ts`:
-
-- Extend Angular's `TitleStrategy`.
-- Override `updateTitle(snapshot: RouterStateSnapshot)`.
-- Walk the route tree to find the deepest `data.breadcrumb`.
-- Call `this.title.setTitle(breadcrumb ? \`${breadcrumb} | AppName\` : 'AppName')`.
-- The app name should come from a constant (e.g. `APP_NAME` in `environment.ts` or a shared constant file) so each app built on the template can change it in one place.
-
-### 8.3 Register
-
-- In `app.config.ts`, add `{ provide: TitleStrategy, useClass: PageTitleStrategy }` to `providers`.
-
----
-
-## Feature 9 — Empty State Component
-
-**Goal:** A reusable component for "no data" / "nothing here yet" states.
-
-### 9.1 Component
-
-Create `src/app/shared/components/empty-state.ts` (standalone):
-
-- Inputs (all with sensible defaults):
-  - `icon: string` — PrimeNG icon class, default `'pi pi-inbox'`.
-  - `title: string` — default `'Nothing here yet'`.
-  - `message: string` — default `''`.
-  - `actionLabel: string` — optional button text.
-  - `actionLink: string` — optional routerLink.
-  - `actionClick: EventEmitter<void>` — optional click output.
-- Template:
-  - Centered container.
-  - Large icon.
-  - Title in a heading.
-  - Subtitle/message paragraph.
-  - If `actionLabel` is provided, show a PrimeNG `<p-button>` that either navigates via `routerLink` or emits `actionClick`.
-
-### 9.2 Usage Convention
-
-Document in CLAUDE.md:
-
-```html
-<app-empty-state
-  icon="pi pi-users"
-  title="No users found"
-  message="Try adjusting your filters."
-  actionLabel="Clear Filters"
-  (actionClick)="clearFilters()"
-/>
-```
-
----
-
-## Feature 10 — Environments (Staging / Production)
-
-**Goal:** Provide separate environment configurations for development, staging, and production.
-
-### 10.1 Create Environment Files
-
-The project already has `environment.ts` (default) and `environment.development.ts`. Add:
-
-- `src/environments/environment.staging.ts`:
-  ```ts
-  export const environment = {
-    production: false,
-    apiUrl: 'https://staging-api.example.com/api/v1',
-    appName: 'MyApp (Staging)'
-  };
-  ```
-- Update `src/environments/environment.ts` (production):
-  ```ts
-  export const environment = {
-    production: true,
-    apiUrl: 'https://api.example.com/api/v1',
-    appName: 'MyApp'
-  };
-  ```
-- Update `src/environments/environment.development.ts`:
-  ```ts
-  export const environment = {
-    production: false,
-    apiUrl: 'http://localhost:8080/api/v1',
-    appName: 'MyApp (Dev)'
-  };
-  ```
-
-### 10.2 Add `appName` to the Environment Interface
-
-Create `src/environments/environment.interface.ts`:
-
-```ts
-export interface Environment {
-  production: boolean;
-  apiUrl: string;
-  appName: string;
-}
-```
-
-Each environment file should satisfy this interface so you get compile-time safety.
-
-### 10.3 Angular Build Configuration
-
-In `angular.json`, add a `staging` configuration under `architect > build > configurations`:
-
-```json
-"staging": {
-  "fileReplacements": [
-    {
-      "replace": "src/environments/environment.ts",
-      "with": "src/environments/environment.staging.ts"
-    }
-  ],
-  "optimization": true,
-  "outputHashing": "all"
-}
-```
-
-Also add a staging serve configuration that uses the staging build:
-
-```json
-"staging": {
-  "buildTarget": "angular-template:build:staging"
-}
-```
-
-### 10.4 NPM Scripts
-
-In `package.json`, add:
-
-```json
-"start:staging": "ng serve --configuration staging",
-"build:staging": "ng build --configuration staging"
-```
-
-### 10.5 Use `appName`
-
-- The `PageTitleStrategy` (Feature 8) should read `environment.appName` instead of a hardcoded string.
-- The login/register page logos or headers can display `environment.appName`.
-
----
-
-## Suggested Implementation Order
-
-The features are numbered in dependency order. Here's a summary:
-
-| Order | Feature | Depends On |
-|-------|---------|------------|
-| 1 | Toast Service + HTTP Error Interceptor | — |
-| 2 | Auth 401 Handling + currentUser Signal | Feature 1 (toasts) |
-| 3 | Notification Bell | Feature 2 (currentUser) |
-| 4 | Global Loading Bar | — |
-| 5 | Breadcrumbs | — |
-| 6 | Role Guard | — |
-| 7 | Confirmation Dialog Service | — |
-| 8 | Page Title Service | Feature 5 (route data), Feature 10 (appName) |
-| 9 | Empty State Component | — |
-| 10 | Environments (staging/prod) | — |
-
-Features 4, 5, 6, 7, 9, and 10 have no dependencies and can technically be done in any order. However the numbered order is recommended because it introduces infrastructure (toasts, currentUser) before the features that consume it.
-
----
-
-## CLAUDE.md Updates
-
-After all features are implemented, the CLAUDE.md file should be updated to document:
-
-1. The new services in `core/services/` (toast, loading, breadcrumb, notification, confirmation, page-title).
-2. The new interceptors in `core/interceptors/` (error, loading).
-3. The new guard in `core/guards/` (role guard).
-4. The shared component in `shared/components/` (empty-state).
-5. The route `data` convention (`breadcrumb` property).
-6. The environment files and build configurations.
-7. The npm scripts for staging builds.
+**Every phase carries its own design work — there is no "design pass" phase.** A page is not done until it composes §3's vocabulary, works in dark mode, and holds together at 360 px. Phase 8 audits; it does not retrofit.
+
+The source design lives in the Claude Design project `7147e20e-92bb-4f6b-ae5c-75a8ba7ca491` (`Keyway Web Landing.dc.html`), readable through the design MCP. It is a marketing landing page; the app screens extend its vocabulary rather than copying its layout.
+
+### Phase 1 — Foundation: API alignment and auth core
+1. **Models**: TS interfaces/enums for every schema in API.md (token pair, user, city, public car summary/detail + filter, company, car + image + price tier, rental client view, company rental owner view, notification, unread count, generic page envelope, ApiError + FieldError, all enums). Replace the template's `core/models/auth.model.ts` / `user.model.ts` / `notification.model.ts`.
+2. **Token handling**: store access + refresh tokens (replacing `JwtService`'s single localStorage `token` key); session restore on startup = `GET /auth/me` populates the current-user signal (role/name/id from here, not JWT claims); expose `role` and `isLoggedIn` signals.
+3. **AuthService rework** to real endpoints: login, signup, verify-email, resend-verification, refresh, logout, password-reset request/confirm, me. Delete the `/users`-based register/load/update calls and the `loginNoBackend()` mock helper.
+4. **Auth interceptor**: bearer on all requests except public auth endpoints; on `401` from a non-auth endpoint, **one** single-flight `POST /auth/refresh` (concurrent 401s wait on the same refresh), store new pair, replay original; if refresh fails, clear session, remember `returnUrl`, route to login with "session expired" — only if the user was logged in (anonymous browsing never redirected).
+5. **Error interceptor rework**: parse `ApiError`; branch on `code`; do **not** toast codes owned by forms/pages (`VALIDATION_FAILED`, `INVALID_CREDENTIALS`, `ACCOUNT_NOT_VERIFIED`, verification 409s, business 409s); toast 500/network/unhandled; surface `429` with `Retry-After`. Remove the current "destroy token + redirect + toast on any 401" and the blanket 403/404 toasts (404 handling per §4; 401 now owned by the refresh flow).
+6. **Guards**: `authGuard` gains `returnUrl` capture; `roleGuard` keeps its factory shape but reads the current-user signal (await session restore) instead of JWT claims; new **owner-company guard** per §5.4 with cached company state.
+7. **Route skeleton**: public layout at `/` (catalog placeholder); `AppLayout` moves under guarded routes (`/dashboard`, `/rentals`, `/fleet`, `/company`, `/settings`, `/notifications`); remove `/profile`; role-aware menu; breadcrumbs/titles for new routes.
+8. **Housekeeping**: rename `package.json` name (`sakai-ng` → `rent-ui`) and environment `appName`s; README note about backend `CORS_ALLOWED_ORIGINS` needing `http://localhost:4200`; start the error-code → copy map.
+9. **Design system** (§3): Keyway PrimeNG preset, `_keyway.scss` brand layer, Sora/Instrument Sans, `.keyway-*` component classes; retire the runtime theme configurator; restyle the shell, auth screens, status pages, dashboard, settings and the shared `EmptyState`. The public landing page at `/` is built here as the reference implementation of the system.
+
+*Acceptance*: app boots logged-out onto a public shell; a stored valid token pair restores a session via `/auth/me`; an expired access token refreshes transparently exactly once per burst; a revoked refresh token lands on login with return URL preserved.
+
+### Phase 2 — Auth pages and onboarding flows
+All of §5.2: login (code branches, returnUrl, role routing), register (role cards, password hints, always-202 → verify), verify-email (6-digit UX, resend cooldown, 409 branches), forgot/reset password, 429 countdowns on all auth forms, logout wiring. New routes registered in `features/auth/auth.routes.ts`.
+*Design*: every auth screen is the shared card shell already used by login/register/status pages — logo mark, Sora heading, muted subline, lime CTA, one card, no page chrome. The role choice on register becomes two selectable cards (green ring + mint fill when active) rather than a select-button. The 6-digit code input is six `.keyway-field`-style boxes. 429 countdowns render as an inline `p-message`, never a toast.
+*Acceptance*: both persona journeys signup → verify → login work end-to-end; unverified login lands on verify with email prefilled; wrong/expired/exhausted codes each show distinct guidance; every screen checked in dark mode and at 360 px.
+
+### Phase 3 — Public catalog
+Public layout (anonymous vs logged-in header), catalog with full filter bar, URL-serialized state, pagination, skeletons, empty state; car detail with gallery, tier table, company block, unavailable-404 state, role-aware Book CTA.
+*Design*: the catalog reuses the landing page's search card (`.keyway-field` chrome) as a sticky filter bar, and its car card and skeleton verbatim — the landing "Popular near you" band is the prototype for the grid. Car detail: full-bleed gallery, `.card` for the tier table, green `.keyway-band` for the booking panel, lime CTA for "Request booking".
+*Acceptance*: §5.1 criteria; both-or-neither dates enforced; a deep-linked filtered URL reproduces the search; grid reflows 4 → 2 → 1 and the filter bar stacks on mobile.
+
+### Phase 4 — Client booking and rentals
+Booking flow (estimate + disclaimer, UTC conversion, `INVALID_RENTAL_PERIOD`/`CAR_NOT_AVAILABLE` branches, PENDING explainer), my-rentals list with status tabs, rental detail with breakdown + company contact + guarded cancel, client dashboard widgets.
+*Design*: rental rows are cards, not table rows, so they need no mobile variant; status tabs are a PrimeNG `p-tabs` in brand colours; the price breakdown sits in a bordered sub-panel inside the detail `.card`; the confirmation screen uses the green band with the server's snapshot. Status badges follow §4 and are built once here as a shared component.
+*Acceptance*: a client books a car found via availability search and sees the server-priced confirmation; cancelling an APPROVED future rental works; post-pickup cancel impossible in UI and raced case handled (`RENTAL_ALREADY_STARTED`); dark mode and 360 px checked.
+
+### Phase 5 — Owner: company and fleet
+Owner-company guard live; company setup + profile (resolve the `city` shape ambiguity here against a live response); fleet list with publish toggles and dual-outcome delete; car create/edit; image manager; price-tier editor (open-ended tiers, overlap validation, wholesale replace); publish panel.
+*Design*: company setup is the onboarding card shell (green band header, one `.card`, lime CTA). The fleet list is a PrimeNG table on desktop that becomes stacked cards below `md` — build both now, not in Phase 8. Car edit is three stacked `.card`s (details / images / pricing) plus a publish panel; the image grid reuses the catalog card's image treatment with a "Primary" chip on the lowest position; price-tier rows are compact inline fields with a live preview list.
+*Acceptance*: a fresh owner is forced through setup exactly once; a created, photographed, tiered, published ACTIVE car appears in the anonymous catalog with the right "from" price; duplicate plate shows on the plate field; unpublishing removes it from the catalog (detail URL → unavailable state); fleet table and car edit checked in dark mode and at 360 px.
+
+### Phase 6 — Owner: rental request workflow
+Company rentals list (PENDING-first queue), detail with status timeline, four guarded actions with confirms and response-driven updates, `INVALID_RENTAL_TRANSITION` → refetch, owner dashboard widgets.
+*Design*: the request queue reuses the Phase 4 rental card with an actions row; the status timeline is a horizontal stepper in brand green with muted dead-ends for rejected/cancelled/expired. Approve is the lime CTA; reject is `severity="danger"` text — never two lime buttons side by side.
+*Acceptance*: full happy path PENDING → APPROVED → ACTIVE → COMPLETED drivable from the UI; car returns to availability after completion; approving a just-cancelled request shows the conflict and refreshed state; dark mode and 360 px checked.
+
+### Phase 7 — Notifications
+Replace template bell wiring: new model (7 event types, `rentalId`), paged GET, **POST** verbs (template currently uses PUT), separate `unread-count` endpoint with polling (60 s, visibility-aware, focus refresh, starts on login/stops on logout), popover + role-aware deep links, mark-read/read-all, full page with `unreadOnly` toggle.
+*Design*: the bell popover and the full page share one notification row — type icon chip, message, relative time, unread dot in brand green. The badge is the one place red is allowed. The full page is a single `.card` list with the unread-only toggle in its header.
+*Acceptance*: an owner sees the badge rise within a minute of a client's request without reloading; clicking opens the owner rental detail and clears the dot; client notified on approve/reject/expiry; reminders deep-link correctly; dark mode and 360 px checked.
+
+### Phase 8 — Polish and hardening
+Complete the error-code copy map (every code in API.md); empty/skeleton audit; breadcrumbs + titles for all routes; session-expiry UX review; money/date formatting audit; accessibility pass on forms/dialogs (labels, focus order, dialog focus traps, contrast — lime on green and muted-on-cream both need checking); refresh CLAUDE.md and README (both still describe the template); manual end-to-end smoke of both persona journeys including raced-conflict paths (double-book, transition conflict, expired code).
+
+**Design audit** — a review, not a retrofit, since every phase shipped its own design: one pass over all screens in light and dark at 360/768/1280 px; confirm no page introduced a colour, radius, shadow or font outside §3; confirm one lime CTA per screen; replace the placeholder testimonials on the landing page with real ones or delete the section (see §7).
+
+## 7. Explicitly out of scope (no backend support — build nothing, remove template stubs)
+
+Profile editing; change password while logged in; admin screens; payments/invoicing; reviews/ratings; favourites; chat; OAuth logins; image reordering; car attributes beyond the minimal model; multi-company or employee roles; real-time push (polling only); runtime theme/palette switching beyond light/dark/system.
+
+**Outstanding content debt.** The landing page's "Trusted by drivers" band (three testimonials and a "4.8 ★ · 12k reviews" badge) is placeholder copy carried over from the design — there is no reviews feature, so none of it is real. It is isolated as `PLACEHOLDER_REVIEWS` in `features/home/home.ts`. Before the site is public it must be replaced with genuine, attributable testimonials or deleted; the same goes for any product claim in the marketing copy that the contract does not support.

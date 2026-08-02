@@ -1,0 +1,41 @@
+<app-auth-card heading="Verify your email" subheading="Enter the 6-digit code we emailed you.">
+    @if (notice()) {
+    <p-message severity="info" [text]="notice()!" styleClass="w-full mb-5" />
+    }
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <label for="email" class="block text-color font-medium text-sm mb-2">Email</label>
+        <input pInputText id="email" type="email" autocomplete="email" class="w-full" formControlName="email" />
+        <app-field-error [control]="form.controls.email" [messages]="{ required: 'Enter the address you signed up with.' }" />
+
+        <span class="block text-color font-medium text-sm mb-2 mt-5">Verification code</span>
+        <app-code-input formControlName="code" label="Verification code" />
+        <app-field-error [control]="form.controls.code" [messages]="{ required: 'Enter the 6-digit code.', minlength: 'The code is 6 digits.' }" />
+
+        @if (rateLimit.active()) {
+        <p-message severity="warn" styleClass="w-full mt-4" [text]="'Too many attempts. Try again in ' + rateLimit.label() + '.'" />
+        } @else if (formError()) {
+        <p-message [severity]="resendIsTheFix() ? 'warn' : 'error'" [text]="formError()!" styleClass="w-full mt-4" />
+        }
+
+        <button type="submit" class="keyway-cta w-full mt-6" [disabled]="loading() || rateLimit.active()">{{ loading() ? 'Verifying…' : 'Verify email' }}</button>
+    </form>
+
+    <div class="mt-6 pt-6 border-t border-surface text-center">
+        <p class="text-sm text-muted-color m-0 mb-2">Didn't get it? Check spam, or send a new code — the previous one stops working.</p>
+
+        <button
+            type="button"
+            class="text-sm font-semibold bg-transparent border-none cursor-pointer p-0 disabled:cursor-not-allowed"
+            [class]="resendIsTheFix() && !resendCooldown.active() ? 'text-primary underline' : 'text-primary'"
+            [disabled]="resending() || resendCooldown.active() || rateLimit.active()"
+            (click)="resend()"
+        >
+            @if (resendCooldown.active()) { Send a new code in {{ resendCooldown.label() }} } @else if (resending()) { Sending… } @else { Send a new code }
+        </button>
+    </div>
+
+    <div class="mt-4 text-center text-sm">
+        <a routerLink="/auth/login" class="text-muted-color no-underline hover:text-color">Back to sign in</a>
+    </div>
+</app-auth-card>

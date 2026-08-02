@@ -1,0 +1,83 @@
+<div class="min-h-screen flex flex-col bg-keyway-cream dark:bg-surface-950 font-body text-keyway-ink dark:text-surface-0">
+    <!-- Nav sits directly on the hero's green, so it carries no border of its own. -->
+    <header class="bg-keyway-green">
+        <div class="mx-auto w-full max-w-[1200px] px-6 lg:px-12 h-[72px] flex items-center justify-between gap-6">
+            <a routerLink="/" class="flex items-center gap-2.5 no-underline shrink-0">
+                <span class="w-[34px] h-[34px] rounded-[10px] bg-keyway-lime flex items-center justify-center">
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#0f4c3a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"></path>
+                        <rect x="3" y="11" width="18" height="6" rx="2"></rect>
+                        <circle cx="7.5" cy="17" r="1.6" fill="#0f4c3a" stroke="none"></circle>
+                        <circle cx="16.5" cy="17" r="1.6" fill="#0f4c3a" stroke="none"></circle>
+                    </svg>
+                </span>
+                <span class="font-display font-bold text-xl text-white tracking-[-0.3px]">{{ appName }}</span>
+            </a>
+
+            <nav class="flex items-center gap-5 lg:gap-8">
+                <a routerLink="/cars" class="hidden md:inline text-[14.5px] font-medium text-white/85 hover:text-white no-underline">Fleet</a>
+                <a routerLink="/" fragment="how-it-works" class="hidden lg:inline text-[14.5px] font-medium text-white/85 hover:text-white no-underline">How it works</a>
+                <a routerLink="/" fragment="reviews" class="hidden lg:inline text-[14.5px] font-medium text-white/85 hover:text-white no-underline">Reviews</a>
+
+                <button
+                    type="button"
+                    class="text-white/85 hover:text-white bg-transparent border-none cursor-pointer p-2"
+                    [attr.aria-label]="layoutService.isDarkTheme() ? 'Switch to light theme' : 'Switch to dark theme'"
+                    (click)="toggleDarkMode()"
+                >
+                    <i class="pi" [class.pi-moon]="layoutService.isDarkTheme()" [class.pi-sun]="!layoutService.isDarkTheme()"></i>
+                </button>
+
+                @if (authService.isLoggedIn()) {
+                <span class="hidden lg:inline text-[14.5px] font-medium text-white/85">{{ authService.displayName() }}</span>
+                @if (hasWorkspace()) {
+                <a routerLink="/dashboard" class="bg-keyway-lime hover:bg-keyway-lime-light text-keyway-green text-[14.5px] font-bold px-5 py-2.5 rounded-[10px] no-underline whitespace-nowrap">Dashboard</a>
+                }
+                <button type="button" class="text-white text-[14.5px] font-semibold px-4 py-2 bg-transparent border-none cursor-pointer" (click)="logout()">Log out</button>
+                } @else {
+                <a routerLink="/auth/login" class="text-white text-[14.5px] font-semibold px-4 py-2 no-underline">Sign in</a>
+                <a routerLink="/auth/register" class="bg-keyway-lime hover:bg-keyway-lime-light text-keyway-green text-[14.5px] font-bold px-5 py-2.5 rounded-[10px] no-underline whitespace-nowrap">Sign up</a>
+                }
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-1 w-full">
+        <router-outlet />
+    </main>
+
+    <footer class="mt-18 border-t border-keyway-line dark:border-surface-700">
+        <div class="mx-auto w-full max-w-[1100px] px-6 pt-14 pb-12 flex flex-col md:flex-row justify-between items-start gap-10">
+            <div class="flex flex-col gap-2">
+                <span class="font-display font-bold text-[17px] text-keyway-green dark:text-keyway-lime">{{ appName }}</span>
+                <span class="text-[13px] text-keyway-faint">Book direct from local rental companies</span>
+                <span class="text-[12.5px] text-keyway-faint">&copy; {{ year }} {{ appName }}</span>
+            </div>
+
+            <div class="flex flex-wrap gap-12 lg:gap-16">
+                <div class="flex flex-col gap-2.5">
+                    <span class="text-xs font-bold uppercase tracking-[0.8px] text-keyway-subtle">Browse</span>
+                    <a routerLink="/cars" class="text-[13.5px] text-keyway-body dark:text-surface-300 no-underline hover:text-keyway-green dark:hover:text-keyway-lime">All cars</a>
+                    <a routerLink="/" fragment="how-it-works" class="text-[13.5px] text-keyway-body dark:text-surface-300 no-underline hover:text-keyway-green dark:hover:text-keyway-lime">How it works</a>
+                </div>
+
+                <div class="flex flex-col gap-2.5">
+                    <span class="text-xs font-bold uppercase tracking-[0.8px] text-keyway-subtle">Account</span>
+                    @if (authService.isLoggedIn()) { @if (hasWorkspace()) {
+                    <a routerLink="/dashboard" class="text-[13.5px] text-keyway-body dark:text-surface-300 no-underline hover:text-keyway-green dark:hover:text-keyway-lime">Dashboard</a>
+                    }
+                    <a routerLink="/settings" class="text-[13.5px] text-keyway-body dark:text-surface-300 no-underline hover:text-keyway-green dark:hover:text-keyway-lime">Settings</a>
+                    } @else {
+                    <a routerLink="/auth/login" class="text-[13.5px] text-keyway-body dark:text-surface-300 no-underline hover:text-keyway-green dark:hover:text-keyway-lime">Sign in</a>
+                    <a routerLink="/auth/register" class="text-[13.5px] text-keyway-body dark:text-surface-300 no-underline hover:text-keyway-green dark:hover:text-keyway-lime">Sign up</a>
+                    }
+                </div>
+
+                <div class="flex flex-col gap-2.5">
+                    <span class="text-xs font-bold uppercase tracking-[0.8px] text-keyway-subtle">List your cars</span>
+                    <a routerLink="/auth/register" class="text-[13.5px] text-keyway-body dark:text-surface-300 no-underline hover:text-keyway-green dark:hover:text-keyway-lime">Become a partner</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+</div>

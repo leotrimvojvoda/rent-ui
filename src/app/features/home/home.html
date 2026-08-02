@@ -1,0 +1,208 @@
+<!-- Hero -->
+<section class="bg-keyway-green relative overflow-hidden px-6 lg:px-12 pt-16 pb-36">
+    <div class="absolute -right-30 -top-25 w-[420px] h-[420px] rounded-full bg-white/5" aria-hidden="true"></div>
+    <div class="absolute right-45 top-40 w-[140px] h-[140px] rounded-full bg-white/5" aria-hidden="true"></div>
+
+    <div class="mx-auto w-full max-w-[1100px] relative">
+        <h1 class="font-display text-4xl lg:text-[52px] leading-[1.1] font-extrabold text-white m-0 mb-3.5 tracking-[-1px] max-w-[640px] text-pretty">Your next trip starts with the right car.</h1>
+        <p class="m-0 text-lg leading-[1.5] text-white/70 max-w-[520px]">Transparent pricing, free cancellation any time before pick-up, and cars from local rental companies.</p>
+    </div>
+</section>
+
+<!-- Search -->
+<section class="mx-auto w-full max-w-[1100px] relative -mt-18 px-6">
+    <div class="bg-white dark:bg-surface-900 rounded-[20px] shadow-[0_16px_40px_rgba(15,40,30,0.16)] p-6 flex flex-col lg:flex-row gap-4 lg:items-end">
+        <div class="lg:flex-[2.2] flex flex-col gap-[7px] min-w-0">
+            <span class="text-[11px] font-semibold uppercase tracking-[0.8px] text-keyway-subtle">Pick-up &amp; return location</span>
+            <div class="keyway-field flex items-center gap-2.5 border-[1.5px] border-keyway-field dark:border-surface-700 rounded-xl px-4 py-3.5">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="text-keyway-green dark:text-keyway-lime shrink-0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"></path>
+                    <circle cx="12" cy="10" r="2.5"></circle>
+                </svg>
+                <p-select
+                    [options]="cityOptions()"
+                    [ngModel]="cityId()"
+                    (ngModelChange)="cityId.set($event)"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Anywhere"
+                    appendTo="body"
+                    [showClear]="true"
+                    styleClass="w-full"
+                    ariaLabel="Pick-up and return location"
+                />
+            </div>
+        </div>
+
+        <div class="lg:flex-[1.3] flex flex-col gap-[7px] min-w-0">
+            <span class="text-[11px] font-semibold uppercase tracking-[0.8px] text-keyway-subtle">Pick-up</span>
+            <div class="keyway-field flex items-center gap-2.5 border-[1.5px] border-keyway-field dark:border-surface-700 rounded-xl px-3.5 py-3">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="text-keyway-green dark:text-keyway-lime shrink-0" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                    <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+                    <path d="M8 3v4M16 3v4M3 10h18"></path>
+                </svg>
+                <p-datepicker
+                    [ngModel]="pickupAt()"
+                    (ngModelChange)="pickupAt.set($event)"
+                    [showTime]="true"
+                    [minDate]="minPickup"
+                    hourFormat="24"
+                    dateFormat="M d"
+                    placeholder="Add date"
+                    appendTo="body"
+                    styleClass="w-full"
+                    inputStyleClass="w-full"
+                />
+            </div>
+        </div>
+
+        <div class="lg:flex-[1.3] flex flex-col gap-[7px] min-w-0">
+            <span class="text-[11px] font-semibold uppercase tracking-[0.8px] text-keyway-subtle">Return</span>
+            <div class="keyway-field flex items-center gap-2.5 border-[1.5px] border-keyway-field dark:border-surface-700 rounded-xl px-3.5 py-3">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="text-keyway-green dark:text-keyway-lime shrink-0" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                    <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+                    <path d="M8 3v4M16 3v4M3 10h18"></path>
+                </svg>
+                <p-datepicker
+                    [ngModel]="returnAt()"
+                    (ngModelChange)="returnAt.set($event)"
+                    [showTime]="true"
+                    [minDate]="minReturn()"
+                    hourFormat="24"
+                    dateFormat="M d"
+                    placeholder="Add date"
+                    appendTo="body"
+                    styleClass="w-full"
+                    inputStyleClass="w-full"
+                />
+            </div>
+        </div>
+
+        <button type="button" class="shrink-0 bg-keyway-lime hover:bg-keyway-lime-light border-none rounded-xl px-8 py-4 text-base font-bold text-keyway-green font-display cursor-pointer" (click)="search()">Search cars</button>
+    </div>
+
+    @if (dateError()) {
+    <p class="mt-3 text-center text-sm text-red-600 dark:text-red-400">{{ dateError() }}</p>
+    }
+
+    <div class="flex flex-wrap gap-5 sm:gap-7 justify-center mt-4.5">
+        @for (promise of ['No hidden fees', 'Free cancellation before pick-up', 'Price locked when you book']; track promise) {
+        <div class="flex items-center gap-[7px] text-[13.5px] text-keyway-muted dark:text-surface-400">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="text-keyway-green dark:text-keyway-lime" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 6L9 17l-5-5"></path>
+            </svg>
+            {{ promise }}
+        </div>
+        }
+    </div>
+</section>
+
+<!-- Popular near you -->
+@if (showPopular()) {
+<section class="mx-auto w-full max-w-[1100px] px-6 pt-18">
+    <div class="flex items-baseline justify-between mb-6">
+        <h2 class="font-display text-[28px] font-bold m-0 tracking-[-0.5px]">Popular near you</h2>
+        <a routerLink="/cars" class="text-[14.5px] font-semibold text-keyway-green dark:text-keyway-lime no-underline hover:underline">See all cars →</a>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+        @if (popularLoading()) { @for (skeleton of [0, 1, 2, 3]; track skeleton) {
+        <div class="bg-white dark:bg-surface-900 rounded-2xl overflow-hidden shadow-[0_2px_10px_rgba(15,40,30,0.07)]" aria-hidden="true">
+            <div class="h-[130px] bg-keyway-shade dark:bg-surface-800 animate-pulse"></div>
+            <div class="p-4 flex flex-col gap-2">
+                <div class="h-4 w-2/3 rounded bg-keyway-shade dark:bg-surface-800 animate-pulse"></div>
+                <div class="h-3 w-1/2 rounded bg-keyway-shade dark:bg-surface-800 animate-pulse"></div>
+                <div class="h-5 w-1/3 rounded bg-keyway-shade dark:bg-surface-800 animate-pulse mt-2"></div>
+            </div>
+        </div>
+        } } @else { @for (car of popularCars(); track car.id; let i = $index) {
+        <a
+            [routerLink]="['/cars', car.id]"
+            class="no-underline text-inherit bg-white dark:bg-surface-900 rounded-2xl overflow-hidden shadow-[0_2px_10px_rgba(15,40,30,0.07)] transition-[transform,box-shadow] duration-150 hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(15,40,30,0.12)]"
+        >
+            <div class="h-[130px] bg-keyway-shade dark:bg-surface-800 flex items-center justify-center relative">
+                @if (car.primaryImageUrl) {
+                <img [src]="car.primaryImageUrl" [alt]="car.make + ' ' + car.model" class="w-full h-full object-cover" loading="lazy" />
+                } @else {
+                <svg width="140" height="60" viewBox="0 0 120 52" fill="none" aria-hidden="true">
+                    <path d="M14 38c0-2 1-9 4-12 8-8 20-10 32-10s26 2 34 10c3 3 16 4 20 8 2 2 2 4 2 4H14z" [attr.fill]="carColor(i)"></path>
+                    <path d="M38 18c5-2 12-2 18-2s13 0 18 2l6 8H32l6-8z" fill="rgba(255,255,255,0.35)"></path>
+                    <circle cx="34" cy="40" r="7" fill="#2a2f2c"></circle>
+                    <circle cx="34" cy="40" r="3" fill="#9aa39d"></circle>
+                    <circle cx="94" cy="40" r="7" fill="#2a2f2c"></circle>
+                    <circle cx="94" cy="40" r="3" fill="#9aa39d"></circle>
+                </svg>
+                } @if (carLocation(car)) {
+                <span class="absolute top-2.5 left-2.5 bg-keyway-green/90 text-white text-[10.5px] font-semibold px-2.5 py-1 rounded-full">{{ carLocation(car) }}</span>
+                }
+            </div>
+            <div class="p-4">
+                <div class="text-base font-bold">{{ car.make }} {{ car.model }}</div>
+                <div class="text-[12.5px] text-keyway-subtle mt-[3px]">{{ car.modelYear }} · {{ car.company.name }}</div>
+                <div class="flex items-baseline justify-between mt-3">
+                    <div>
+                        <span class="text-lg font-bold text-keyway-green dark:text-keyway-lime">{{ price(car) }}</span>
+                        <span class="text-[12.5px] text-keyway-subtle">/day</span>
+                    </div>
+                    <span class="text-[13px] font-semibold text-keyway-muted dark:text-surface-400">from</span>
+                </div>
+            </div>
+        </a>
+        } }
+    </div>
+</section>
+}
+
+<!-- How it works -->
+<section id="how-it-works" class="mx-auto w-full max-w-[1100px] px-6 pt-20 scroll-mt-20">
+    <h2 class="font-display text-[28px] font-bold m-0 mb-6 tracking-[-0.5px]">How it works</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        @for (step of steps; track step.n) {
+        <div class="bg-white dark:bg-surface-900 rounded-2xl p-[26px] shadow-[0_1px_6px_rgba(15,40,30,0.05)]">
+            <div class="w-10 h-10 rounded-xl bg-keyway-mint dark:bg-surface-800 flex items-center justify-center font-display font-bold text-base text-keyway-green dark:text-keyway-lime mb-4">{{ step.n }}</div>
+            <div class="text-[17px] font-semibold">{{ step.title }}</div>
+            <div class="text-sm text-keyway-muted dark:text-surface-400 leading-[1.55] mt-1.5">{{ step.body }}</div>
+        </div>
+        }
+    </div>
+</section>
+
+<!-- Reviews — placeholder copy from the design, see PLACEHOLDER_REVIEWS in home.ts -->
+<section id="reviews" class="mx-auto w-full max-w-[1100px] px-6 pt-20 scroll-mt-20">
+    <div class="flex flex-wrap items-center gap-3.5 mb-6">
+        <h2 class="font-display text-[28px] font-bold m-0 tracking-[-0.5px]">Trusted by drivers</h2>
+        <span class="bg-keyway-mint dark:bg-surface-800 text-keyway-green dark:text-keyway-lime text-[13px] font-bold px-3 py-[5px] rounded-full">4.8 ★ · 12k reviews</span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        @for (review of reviews; track review.initials) {
+        <figure class="bg-white dark:bg-surface-900 rounded-2xl p-6 shadow-[0_2px_10px_rgba(15,40,30,0.07)] m-0">
+            <div class="flex gap-0.5 mb-3">
+                @for (star of [1, 2, 3, 4, 5]; track star) {
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#e8a13a" aria-hidden="true"><path d="M12 2l3 7 7 .5-5.4 4.8 1.7 7-6.3-4-6.3 4 1.7-7L2 9.5 9 9z"></path></svg>
+                }
+            </div>
+            <blockquote class="m-0 mb-4 text-[14.5px] leading-[1.55] text-keyway-body dark:text-surface-300">{{ review.quote }}</blockquote>
+            <figcaption class="flex items-center gap-2.5">
+                <span class="w-[34px] h-[34px] rounded-full bg-keyway-green text-keyway-lime flex items-center justify-center text-[13px] font-bold">{{ review.initials }}</span>
+                <span>
+                    <span class="block text-sm font-semibold">{{ review.name }}</span>
+                    <span class="block text-xs text-keyway-subtle">{{ review.meta }}</span>
+                </span>
+            </figcaption>
+        </figure>
+        }
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="mx-auto w-full max-w-[1100px] mt-20 px-6">
+    <div class="bg-keyway-green rounded-3xl px-8 py-12 lg:px-16 lg:py-14 flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
+        <div class="absolute -right-15 -bottom-20 w-[260px] h-[260px] rounded-full bg-white/5" aria-hidden="true"></div>
+        <div class="relative">
+            <h2 class="font-display text-3xl font-bold text-white m-0 mb-2 tracking-[-0.5px]">Ready to hit the road?</h2>
+            <p class="m-0 text-[15.5px] text-white/70">Request a car now — cancel free any time before pick-up.</p>
+        </div>
+        <a routerLink="/cars" class="relative shrink-0 bg-keyway-lime hover:bg-keyway-lime-light text-keyway-green font-display text-base font-bold px-8 py-4 rounded-xl no-underline text-center">Search cars</a>
+    </div>
+</section>

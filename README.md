@@ -1,6 +1,16 @@
-# Angular Template
+# Keyway (rent-ui)
 
-A production-ready Angular 20 starter template with authentication, role-based access control, dark mode, and a full admin layout built on PrimeNG and Tailwind CSS v4.
+The Angular 20 frontend of the Rent-API car-rental marketplace, built on PrimeNG and Tailwind CSS v4.
+
+> Being built in phases against `PLAN.md`. Phase 1 (API models, token/session core, interceptors, guards, route skeleton) is in place; the rest of the sections below still describe the starter template it grew out of and are refreshed in Phase 8.
+
+## Running against the backend
+
+The dev build talks to `http://localhost:8080/api/v1` (`src/environments/environment.development.ts`).
+
+**The backend must allow this origin.** Add `http://localhost:4200` to the Rent-API `CORS_ALLOWED_ORIGINS` environment variable, or every request from the dev server fails as a network error before it is ever authenticated.
+
+The API contract lives in the backend repo (`API.md`, `BACKEND.md`) and is authoritative — it is not vendored here.
 
 ## Tech Stack
 

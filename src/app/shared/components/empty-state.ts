@@ -1,23 +1,24 @@
 import { Component, input, output } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { ButtonModule } from 'primeng/button';
 
 @Component({
     selector: 'app-empty-state',
     standalone: true,
-    imports: [RouterModule, ButtonModule],
+    imports: [RouterModule],
     template: `
         <div class="flex flex-col items-center justify-center py-12 px-4 text-center">
-            <i [class]="icon() + ' text-5xl text-muted-color mb-4'"></i>
-            <div class="text-xl font-semibold mb-2">{{ title() }}</div>
+            <div class="w-14 h-14 rounded-2xl bg-primary-50 dark:bg-surface-800 flex items-center justify-center mb-5">
+                <i [class]="icon()" class="text-2xl! text-primary"></i>
+            </div>
+            <div class="font-display text-lg font-bold mb-2">{{ title() }}</div>
             @if (message()) {
-                <p class="text-muted-color mb-4 max-w-md">{{ message() }}</p>
+                <p class="text-muted-color text-sm mb-5 max-w-md leading-relaxed">{{ message() }}</p>
             }
             @if (actionLabel()) {
                 @if (actionLink()) {
-                    <p-button [label]="actionLabel()" [routerLink]="actionLink()" severity="secondary" />
+                    <a [routerLink]="actionLink()" class="keyway-cta no-underline">{{ actionLabel() }}</a>
                 } @else {
-                    <p-button [label]="actionLabel()" (click)="actionClick.emit()" severity="secondary" />
+                    <button type="button" class="keyway-cta" (click)="actionClick.emit()">{{ actionLabel() }}</button>
                 }
             }
         </div>

@@ -1,18 +1,16 @@
-import { Component, inject, ViewChild } from '@angular/core';
+import { Component, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
-import { BadgeModule } from 'primeng/badge';
+import { RouterModule } from '@angular/router';
 import { Popover, PopoverModule } from 'primeng/popover';
-import { ButtonModule } from 'primeng/button';
+import { NOTIFICATION_ICONS, NotificationResponse } from '../../core/models/notification.model';
 import { NotificationService } from '../../core/services/notification.service';
-import { NotificationItem } from '../../core/models/notification.model';
 
 @Component({
     selector: 'app-notification-bell',
     standalone: true,
-    imports: [CommonModule, BadgeModule, PopoverModule, ButtonModule],
+    imports: [CommonModule, PopoverModule, RouterModule],
     template: `
-        <button type="button" class="layout-topbar-action relative" (click)="toggle($event)">
+        <button type="button" class="layout-topbar-action relative" aria-label="Notifications" (click)="toggle($event)">
             <i class="pi pi-bell"></i>
             @if (notificationService.unreadCount() > 0) {
                 <span class="absolute -top-1 -right-1 flex items-center justify-center bg-red-500 text-white text-xs rounded-full w-5 h-5">
@@ -25,29 +23,22 @@ import { NotificationItem } from '../../core/models/notification.model';
                 <div class="flex items-center justify-between px-3 py-2 border-b border-surface">
                     <span class="font-semibold">Notifications</span>
                     @if (notificationService.unreadCount() > 0) {
-                        <button type="button" class="text-primary text-sm cursor-pointer bg-transparent border-none"
-                                (click)="notificationService.markAllAsRead()">
-                            Mark all as read
-                        </button>
+                        <button type="button" class="text-primary text-sm cursor-pointer bg-transparent border-none" (click)="markAllAsRead()">Mark all as read</button>
                     }
                 </div>
                 <div class="max-h-80 overflow-y-auto">
                     @for (item of notificationService.notifications(); track item.id) {
-                        <div class="flex items-start gap-3 px-3 py-3 cursor-pointer hover:bg-emphasis transition-colors"
-                             [ngClass]="{ 'bg-emphasis': !item.read }"
-                             (click)="onItemClick(item)">
-                            <span class="mt-1 flex-shrink-0 w-2 h-2 rounded-full"
-                                  [ngClass]="{
-                                      'bg-blue-500': item.type === 'info',
-                                      'bg-yellow-500': item.type === 'warning',
-                                      'bg-red-500': item.type === 'error',
-                                      'bg-green-500': item.type === 'success'
-                                  }"></span>
+                        <div class="flex items-start gap-3 px-3 py-3 cursor-pointer hover:bg-emphasis transition-colors" [class.bg-emphasis]="!item.read" (click)="onItemClick(item)">
+                            <i [class]="icon(item) + ' mt-1 text-muted-color'"></i>
                             <div class="flex-1 min-w-0">
-                                <div class="font-medium text-sm truncate">{{ item.title }}</div>
-                                <div class="text-muted-color text-xs mt-1 line-clamp-2">{{ item.message }}</div>
-                                <div class="text-muted-color text-xs mt-1">{{ getRelativeTime(item.createdAt) }}</div>
+                                <div class="text-sm">{{ item.message }}</div>
+                                <div class="text-muted-color text-xs mt-1">
+                                    {{ relativeTime(item.createdAt) }}
+                                </div>
                             </div>
+                            @if (!item.read) {
+                                <span class="mt-2 shrink-0 w-2 h-2 rounded-full bg-primary"></span>
+                            }
                         </div>
                     } @empty {
                         <div class="px-3 py-6 text-center text-muted-color text-sm">
@@ -56,34 +47,40 @@ import { NotificationItem } from '../../core/models/notification.model';
                         </div>
                     }
                 </div>
+                <div class="border-t border-surface px-3 py-2 text-center">
+                    <a routerLink="/notifications" class="text-primary text-sm no-underline" (click)="op.hide()">See all</a>
+                </div>
             </div>
         </p-popover>
     `
 })
 export class NotificationBell {
     notificationService = inject(NotificationService);
-    private router = inject(Router);
 
     @ViewChild('op') op!: Popover;
 
     toggle(event: Event): void {
+        // The list is only worth fetching when someone actually looks at it.
+        this.notificationService.loadLatest();
         this.op.toggle(event);
     }
 
-    onItemClick(item: NotificationItem): void {
+    icon(item: NotificationResponse): string {
+        return NOTIFICATION_ICONS[item.type] ?? 'pi pi-bell';
+    }
+
+    markAllAsRead(): void {
+        this.notificationService.markAllAsRead().subscribe();
+    }
+
+    onItemClick(item: NotificationResponse): void {
         if (!item.read) {
-            this.notificationService.markAsRead(item.id);
-        }
-        if (item.link) {
-            this.op.hide();
-            this.router.navigate([item.link]);
+            this.notificationService.markAsRead(item.id).subscribe();
         }
     }
 
-    getRelativeTime(dateString: string): string {
-        const now = Date.now();
-        const date = new Date(dateString).getTime();
-        const diff = now - date;
+    relativeTime(dateString: string): string {
+        const diff = Date.now() - new Date(dateString).getTime();
 
         const minutes = Math.floor(diff / 60000);
         if (minutes < 1) return 'Just now';

@@ -1,29 +1,31 @@
-<div class="card">
-    <div class="font-semibold text-xl mb-6">Settings</div>
+<div class="max-w-3xl">
+    <div class="card">
+        <h2 class="keyway-section-title">Appearance</h2>
+        <p class="text-muted-color text-sm mb-5">Choose how Keyway looks on this device. System follows your operating system.</p>
 
-    <div class="flex flex-col gap-6 max-w-lg">
+        <p-selectbutton [options]="themeOptions" [ngModel]="selectedTheme" (ngModelChange)="onThemeChange($event)" optionLabel="label" optionValue="value" [allowEmpty]="false">
+            <ng-template #item let-opt> <i [class]="opt.icon" class="mr-2"></i>{{ opt.label }} </ng-template>
+        </p-selectbutton>
+    </div>
 
-        <!-- Appearance -->
-        <div>
-            <div class="font-medium text-lg mb-4">Appearance</div>
-            <div class="flex flex-col gap-4">
-                <div>
-                    <label class="block font-medium mb-2">Theme</label>
-                    <p-selectbutton
-                        [options]="themeOptions"
-                        [ngModel]="selectedTheme"
-                        (ngModelChange)="onThemeChange($event)"
-                        optionLabel="label"
-                        optionValue="value">
-                        <ng-template #item let-opt>
-                            <i [class]="opt.icon" class="mr-2"></i>{{ opt.label }}
-                        </ng-template>
-                    </p-selectbutton>
-                </div>
-                <app-configurator style="display: block; position: static; width: auto; border: none; box-shadow: none; padding: 0; background: transparent;" />
-            </div>
-        </div>
+    <div class="card">
+        <h2 class="keyway-section-title">Account</h2>
 
+        @if (authService.currentUser(); as user) {
+        <dl class="grid grid-cols-1 sm:grid-cols-[10rem_1fr] gap-y-3 gap-x-4 m-0 text-sm">
+            <dt class="text-muted-color">Name</dt>
+            <dd class="m-0 font-medium">{{ user.firstName }} {{ user.lastName }}</dd>
 
+            <dt class="text-muted-color">Email</dt>
+            <dd class="m-0 font-medium">{{ user.email }}</dd>
+
+            <dt class="text-muted-color">Account type</dt>
+            <dd class="m-0 font-medium">{{ user.role === 'OWNER' ? 'Rental company' : user.role === 'CLIENT' ? 'Renter' : user.role }}</dd>
+        </dl>
+        }
+
+        <!-- There is no logged-in change-password endpoint: signing out and using
+             the password-reset flow is the supported path (PLAN.md §4.5). -->
+        <p class="text-muted-color text-sm mt-6 mb-0">To change your password, sign out and use "Forgot password" on the sign-in screen.</p>
     </div>
 </div>

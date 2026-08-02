@@ -3,10 +3,11 @@ import { Subject } from 'rxjs';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
+/**
+ * The palette is fixed by the Keyway preset (`core/theme/keyway-preset.ts`), so
+ * only the light/dark choice and the menu mode are user state.
+ */
 export interface layoutConfig {
-    preset?: string;
-    primary?: string;
-    surface?: string | undefined | null;
     darkTheme?: boolean;
     menuMode?: string;
 }
@@ -31,9 +32,6 @@ export class LayoutService {
     private static readonly CONFIG_STORAGE_KEY = 'layoutConfig';
 
     _config: layoutConfig = {
-        preset: 'Aura',
-        primary: 'emerald',
-        surface: null,
         darkTheme: false,
         menuMode: 'static',
         ...this.loadConfigFromStorage()
@@ -72,10 +70,6 @@ export class LayoutService {
     isSidebarActive = computed(() => this.layoutState().overlayMenuActive || this.layoutState().staticMenuMobileActive);
 
     isDarkTheme = computed(() => this.layoutConfig().darkTheme);
-
-    getPrimary = computed(() => this.layoutConfig().primary);
-
-    getSurface = computed(() => this.layoutConfig().surface);
 
     isOverlay = computed(() => this.layoutConfig().menuMode === 'overlay');
 
@@ -121,9 +115,6 @@ export class LayoutService {
             if (saved) {
                 const parsed = JSON.parse(saved);
                 return {
-                    ...(parsed.preset && { preset: parsed.preset }),
-                    ...(parsed.primary && { primary: parsed.primary }),
-                    ...(parsed.surface !== undefined && { surface: parsed.surface }),
                     ...(parsed.menuMode && { menuMode: parsed.menuMode })
                 };
             }
@@ -135,12 +126,7 @@ export class LayoutService {
 
     private saveConfigToStorage(config: layoutConfig): void {
         try {
-            const toSave = {
-                preset: config.preset,
-                primary: config.primary,
-                surface: config.surface,
-                menuMode: config.menuMode
-            };
+            const toSave = { menuMode: config.menuMode };
             localStorage.setItem(LayoutService.CONFIG_STORAGE_KEY, JSON.stringify(toSave));
         } catch {
             // Ignore storage errors
