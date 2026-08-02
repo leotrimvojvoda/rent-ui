@@ -1,0 +1,57 @@
+<h2 class="keyway-section-title">Price tiers</h2>
+<p class="text-sm text-muted-color m-0 mb-4">Charge less per day for longer rentals. Any length you don't cover falls back to the standard rate.</p>
+
+@if (rows.controls.length) {
+<div class="flex flex-col gap-3">
+    <div class="hidden sm:grid grid-cols-[1fr_1fr_1fr_auto] gap-3 text-[11px] font-semibold uppercase tracking-[0.8px] text-keyway-subtle">
+        <span>From (days)</span>
+        <span>To (days)</span>
+        <span>Price per day</span>
+        <span class="w-9"></span>
+    </div>
+
+    @for (row of rows.controls; track $index; let i = $index) {
+    <div [formGroup]="row" class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] gap-3 items-center">
+        <label class="sm:hidden text-xs text-muted-color" [attr.for]="'minDays' + i">From (days)</label>
+        <p-inputnumber [inputId]="'minDays' + i" formControlName="minDays" [min]="1" [useGrouping]="false" placeholder="1" styleClass="w-full" inputStyleClass="w-full" />
+
+        <label class="sm:hidden text-xs text-muted-color" [attr.for]="'maxDays' + i">To (days) — leave empty for "and up"</label>
+        <p-inputnumber [inputId]="'maxDays' + i" formControlName="maxDays" [min]="1" [useGrouping]="false" placeholder="and up" styleClass="w-full" inputStyleClass="w-full" />
+
+        <label class="sm:hidden text-xs text-muted-color" [attr.for]="'dailyPrice' + i">Price per day</label>
+        <p-inputnumber [inputId]="'dailyPrice' + i" formControlName="dailyPrice" [min]="0" [maxFractionDigits]="2" placeholder="0.00" styleClass="w-full" inputStyleClass="w-full" />
+
+        <button
+            type="button"
+            class="w-9 h-9 rounded-lg border border-surface bg-transparent text-muted-color hover:text-red-700 dark:hover:text-red-300 cursor-pointer flex items-center justify-center justify-self-start sm:justify-self-auto"
+            [attr.aria-label]="'Remove tier ' + (i + 1)"
+            (click)="removeRow(i)"
+        >
+            <i class="pi pi-times text-xs"></i>
+        </button>
+    </div>
+    }
+</div>
+} @else {
+<p class="text-sm text-muted-color m-0">No tiers — every rental is charged at the standard rate.</p>
+}
+
+<button type="button" class="mt-4 px-4 py-2.5 rounded-xl border border-surface bg-transparent text-color text-sm font-medium hover:bg-emphasis cursor-pointer" (click)="addRow()">Add a tier</button>
+
+<!-- Live preview: what a customer would actually be charged. -->
+<div class="rounded-xl border border-surface p-4 mt-5">
+    <div class="text-xs font-semibold uppercase tracking-[0.8px] text-keyway-subtle mb-2">Customers pay</div>
+    <ul class="m-0 p-0 list-none flex flex-col gap-1.5 text-sm">
+        @for (line of preview(); track line) {
+        <li>{{ line }}</li>
+        }
+    </ul>
+</div>
+
+@if (formError()) {
+<p-message severity="error" [text]="formError()!" styleClass="w-full mt-4" />
+} @else if (validationError()) {
+<p-message severity="warn" [text]="validationError()!" styleClass="w-full mt-4" />
+}
+
+<button type="button" class="keyway-cta mt-5" [disabled]="saving() || !!validationError()" (click)="save()">{{ saving() ? 'Saving…' : 'Save pricing' }}</button>

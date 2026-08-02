@@ -1,0 +1,109 @@
+<div class="max-w-3xl">
+    <a routerLink="/fleet" class="inline-flex items-center gap-2 text-sm text-muted-color no-underline hover:text-color mb-5">
+        <i class="pi pi-arrow-left text-xs"></i>
+        Your fleet
+    </a>
+
+    @if (notFound()) {
+    <div class="card text-center py-12">
+        <h1 class="font-display font-bold text-xl m-0 mb-2">We can't find that car</h1>
+        <p class="text-muted-color text-sm m-0 mb-6">It may have been removed, or it belongs to another company.</p>
+        <a routerLink="/fleet" class="keyway-cta no-underline">Back to your fleet</a>
+    </div>
+    } @else if (loading()) {
+    <div class="card" aria-hidden="true">
+        <div class="h-6 w-1/3 rounded bg-keyway-shade dark:bg-surface-800 animate-pulse"></div>
+        <div class="h-24 rounded bg-keyway-shade dark:bg-surface-800 animate-pulse mt-6"></div>
+    </div>
+    } @else { @if (car(); as detail) {
+    <div class="flex flex-wrap items-start justify-between gap-3 mb-5">
+        <div>
+            <h1 class="font-display font-bold text-2xl m-0 mb-1">{{ detail.make }} {{ detail.model }}</h1>
+            <p class="text-muted-color text-sm m-0">{{ detail.modelYear }} · {{ detail.licensePlate }}</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <app-car-status-badge [status]="detail.status" />
+            <app-published-badge [published]="detail.published" [status]="detail.status" />
+        </div>
+    </div>
+    } @else {
+    <h1 class="font-display font-bold text-2xl m-0 mb-5">Add a car</h1>
+    }
+
+    <!-- Details -->
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="card">
+        <h2 class="keyway-section-title">Car details</h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label for="make" class="block text-color font-medium text-sm mb-2">Make</label>
+                <input pInputText id="make" formControlName="make" type="text" maxlength="80" placeholder="Škoda" class="w-full" />
+                <app-field-error [control]="form.controls.make" [messages]="{ required: 'Enter the make.', maxlength: 'Keep this under 80 characters.' }" />
+            </div>
+
+            <div>
+                <label for="model" class="block text-color font-medium text-sm mb-2">Model</label>
+                <input pInputText id="model" formControlName="model" type="text" maxlength="80" placeholder="Octavia" class="w-full" />
+                <app-field-error [control]="form.controls.model" [messages]="{ required: 'Enter the model.', maxlength: 'Keep this under 80 characters.' }" />
+            </div>
+
+            <div>
+                <label for="modelYear" class="block text-color font-medium text-sm mb-2">Model year</label>
+                <p-inputnumber inputId="modelYear" formControlName="modelYear" [min]="minYear" [max]="maxYear" [useGrouping]="false" styleClass="w-full" inputStyleClass="w-full" />
+                <app-field-error [control]="form.controls.modelYear" [messages]="{ required: 'Enter the model year.', min: 'That year looks too early.', max: 'That year is in the future.' }" />
+            </div>
+
+            <div>
+                <label for="licensePlate" class="block text-color font-medium text-sm mb-2">Licence plate</label>
+                <input pInputText id="licensePlate" formControlName="licensePlate" type="text" maxlength="20" placeholder="01-123-AB" class="w-full" />
+                <app-field-error [control]="form.controls.licensePlate" [messages]="{ required: 'Enter the licence plate.', maxlength: 'Keep this under 20 characters.' }" />
+                <p class="mt-1.5 mb-0 text-xs text-muted-color">Must be unique in your company. Case, spaces and hyphens are ignored when comparing.</p>
+            </div>
+
+            <div>
+                <label for="defaultDailyPrice" class="block text-color font-medium text-sm mb-2">Standard price per day</label>
+                <p-inputnumber inputId="defaultDailyPrice" formControlName="defaultDailyPrice" [min]="0" [maxFractionDigits]="2" placeholder="40.00" styleClass="w-full" inputStyleClass="w-full" />
+                <app-field-error [control]="form.controls.defaultDailyPrice" [messages]="{ required: 'Enter a daily price.', min: 'The price has to be above zero.' }" />
+            </div>
+
+            <div>
+                <label for="status" class="block text-color font-medium text-sm mb-2">Status</label>
+                <p-select inputId="status" formControlName="status" [options]="statusOptions" optionLabel="label" optionValue="value" appendTo="body" styleClass="w-full" />
+                <app-field-error [control]="form.controls.status" />
+            </div>
+        </div>
+
+        @if (formError()) {
+        <p-message severity="error" [text]="formError()!" styleClass="w-full mt-5" />
+        }
+
+        <button type="submit" class="keyway-cta mt-6" [disabled]="saving()">{{ saving() ? 'Saving…' : isNew() ? 'Add car' : 'Save changes' }}</button>
+    </form>
+
+    @if (car(); as detail) {
+    <!-- Photos and pricing need a car to attach to, so they appear after creation. -->
+    <div class="card">
+        <app-car-images [carId]="detail.id" [images]="detail.images" (imagesChange)="onImagesChange($event)" />
+    </div>
+
+    <div class="card">
+        <app-price-tiers [carId]="detail.id" [tiers]="detail.priceTiers" [defaultDailyPrice]="detail.defaultDailyPrice" (saved)="onTiersSaved($event)" />
+    </div>
+
+    <div class="card">
+        <h2 class="keyway-section-title">Visibility</h2>
+        <p class="text-sm text-muted-color m-0 mb-4">A car appears in the public catalog only when it is <strong class="text-color">published</strong> and its status is <strong class="text-color">active</strong>.</p>
+
+        <div class="flex flex-wrap items-center gap-3">
+            <button type="button" class="keyway-cta" [disabled]="publishing()" (click)="togglePublish()">{{ publishing() ? 'Working…' : detail.published ? 'Unpublish' : 'Publish' }}</button>
+            <app-published-badge [published]="detail.published" [status]="detail.status" />
+        </div>
+
+        @if (detail.published && detail.status !== 'ACTIVE') {
+        <p class="text-sm text-muted-color mt-4 mb-0">This car is published but its status is not active, so customers cannot see or book it. Set the status back to active to make it visible.</p>
+        }
+    </div>
+    } @else {
+    <p class="text-sm text-muted-color mt-4 mb-0">Photos, price tiers and publishing become available once the car exists.</p>
+    } }
+</div>

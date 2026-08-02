@@ -7,6 +7,10 @@ import { AppLayout } from './core/layout/component/app.layout';
 import { AppPublicLayout } from './core/layout/component/app.publiclayout';
 import { CarDetail } from './features/catalog/car-detail';
 import { Catalog } from './features/catalog/catalog';
+import { CompanyProfile } from './features/company/company-profile';
+import { CompanySetup } from './features/company/company-setup';
+import { CarEdit } from './features/fleet/car-edit';
+import { Fleet } from './features/fleet/fleet';
 import { Booking } from './features/rentals/booking';
 import { RentalDetail } from './features/rentals/rental-detail';
 import { Rentals } from './features/rentals/rentals';
@@ -43,12 +47,9 @@ export const appRoutes: Routes = [
             // Owner
             {
                 path: 'company/setup',
-                component: PlaceholderPage,
+                component: CompanySetup,
                 canActivate: [roleGuard('OWNER'), companySetupGuard],
-                data: {
-                    breadcrumb: 'Company setup',
-                    ...soon('Create your company', 'Set up your company to start listing cars.', 'pi pi-building')
-                }
+                data: { breadcrumb: 'Company setup' }
             },
             {
                 path: 'company/rentals',
@@ -61,22 +62,13 @@ export const appRoutes: Routes = [
             },
             {
                 path: 'company',
-                component: PlaceholderPage,
+                component: CompanyProfile,
                 canActivate: [roleGuard('OWNER'), ownerCompanyGuard],
-                data: {
-                    breadcrumb: 'Company',
-                    ...soon('Company profile', 'Your company details will be editable here.', 'pi pi-building')
-                }
+                data: { breadcrumb: 'Company' }
             },
-            {
-                path: 'fleet',
-                component: PlaceholderPage,
-                canActivate: [roleGuard('OWNER'), ownerCompanyGuard],
-                data: {
-                    breadcrumb: 'Fleet',
-                    ...soon('Your fleet', 'Cars, photos, price tiers and publishing will live here.', 'pi pi-car')
-                }
-            },
+            { path: 'fleet', component: Fleet, canActivate: [roleGuard('OWNER'), ownerCompanyGuard], data: { breadcrumb: 'Fleet' } },
+            { path: 'fleet/new', component: CarEdit, canActivate: [roleGuard('OWNER'), ownerCompanyGuard], data: { breadcrumb: 'Add a car' } },
+            { path: 'fleet/:carId', component: CarEdit, canActivate: [roleGuard('OWNER'), ownerCompanyGuard], data: { breadcrumb: 'Edit car' } },
 
             // Shared
             {

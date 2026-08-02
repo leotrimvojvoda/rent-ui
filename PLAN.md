@@ -41,8 +41,8 @@ Confirmed product decision: **the catalog is public** — anonymous visitors bro
 
 ### Known documentation ambiguities — confirm with backend before/during Phase 5
 
-1. `CompanyResponse.city` / `PublicCompanyResponse.city`: schema says a `CityResponse` object; JSON examples show a plain string. Model defensively; verify against a live response.
-2. `CompanyResponse` carries no `cityId`, but `PUT /companies/me` requires one → the edit form must resolve the current city against `GET /cities`.
+1. `CompanyResponse.city` / `PublicCompanyResponse.city`: schema says a `CityResponse` object; JSON examples show a plain string. **Handled defensively** — `CityRef = CityResponse | string` with `cityName()` / `cityId()` helpers. Still worth confirming against a live response.
+2. `CompanyResponse` carries no `cityId`, but `PUT /companies/me` requires one. **Handled** in `features/company/company-form.ts#resolveCityId`: the id is taken from the city object when present, otherwise matched by name against `GET /cities`. If a live response returns a bare string *and* two cities share a name, this picks the first — confirm the shape to retire the fallback.
 3. Maximum number of price tiers per car: not documented. Enforce only non-overlap client-side; let the server reject the rest.
 4. Full password policy: contract shows only "at least 10 characters". Mirror min-10 client-side; render server `fieldErrors` as the source of truth.
 5. Currency symbol/locale for money display.
@@ -190,7 +190,7 @@ Shell: `AppPublicLayout` — green nav (logo mark, Fleet / How it works / Review
 - Visibility hint: a published car that is `IN_MAINTENANCE`/`RETIRED` shows "not publicly visible" (public requires published **and** ACTIVE).
 - Empty state → "Add your first car".
 
-**Car create — `/fleet/new`; car edit — `/fleet/:id`**
+**Car create — `/fleet/new`; car edit — `/fleet/:carId`** (one component; creation redirects to the edit URL)
 - Create: make (≤80), model (≤80), model year (sensible bounds), plate (≤20, hint that uniqueness ignores case/spaces/hyphens), default daily price (> 0, two decimals), status select. `409 DUPLICATE_LICENSE_PLATE` → inline on plate field. On 201 → edit page.
 - Edit adds three sections:
   - **Images**: thumbnail grid by `position`; lowest labelled "Primary — shown in the catalog"; upload (one file per request; client-side pre-check JPEG/PNG/WebP ≤ 10 MB; per-file progress; multiple files sequential). Delete with confirm. Branches: `UNSUPPORTED_IMAGE_TYPE`, `EMPTY_UPLOAD`, `413`, `502` ("nothing saved — try again"). State plainly: no reordering; to change the primary photo, delete and re-upload in order.
@@ -267,7 +267,7 @@ Booking flow (estimate + disclaimer, UTC conversion, `INVALID_RENTAL_PERIOD`/`CA
 
 ### Phase 5 — Owner: company and fleet
 Owner-company guard live; company setup + profile (resolve the `city` shape ambiguity here against a live response); fleet list with publish toggles and dual-outcome delete; car create/edit; image manager; price-tier editor (open-ended tiers, overlap validation, wholesale replace); publish panel.
-*Design*: company setup is the onboarding card shell (green band header, one `.card`, lime CTA). The fleet list is a PrimeNG table on desktop that becomes stacked cards below `md` — build both now, not in Phase 8. Car edit is three stacked `.card`s (details / images / pricing) plus a publish panel; the image grid reuses the catalog card's image treatment with a "Primary" chip on the lowest position; price-tier rows are compact inline fields with a live preview list.
+*Design*: company setup is the onboarding card shell (green band header, one `.card`, lime CTA). The fleet list is a plain semantic table on desktop (server-side paging means `p-table` would only add chrome to override) that becomes stacked cards below `md` — build both now, not in Phase 8. Car edit is three stacked `.card`s (details / images / pricing) plus a publish panel; the image grid reuses the catalog card's image treatment with a "Primary" chip on the lowest position; price-tier rows are compact inline fields with a live preview list.
 *Acceptance*: a fresh owner is forced through setup exactly once; a created, photographed, tiered, published ACTIVE car appears in the anonymous catalog with the right "from" price; duplicate plate shows on the plate field; unpublishing removes it from the catalog (detail URL → unavailable state); fleet table and car edit checked in dark mode and at 360 px.
 
 ### Phase 6 — Owner: rental request workflow

@@ -1,0 +1,62 @@
+<h2 class="keyway-section-title">Photos</h2>
+<p class="text-sm text-muted-color m-0 mb-4">JPEG, PNG or WebP, up to 10 MB each. The first photo is the one customers see in the catalog.</p>
+
+@if (sorted().length) {
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+    @for (image of sorted(); track image.id; let i = $index) {
+    <div class="relative rounded-2xl overflow-hidden bg-keyway-shade dark:bg-surface-800 aspect-[4/3] group">
+        <img [src]="image.url" [alt]="'Photo ' + (i + 1)" class="w-full h-full object-cover" loading="lazy" />
+
+        @if (i === 0) {
+        <span class="absolute top-2 left-2 bg-keyway-green/90 text-white text-[10.5px] font-semibold px-2.5 py-1 rounded-full">Primary — shown in the catalog</span>
+        }
+
+        <button
+            type="button"
+            class="absolute top-2 right-2 w-8 h-8 rounded-full bg-surface-0/90 dark:bg-surface-900/90 border-none cursor-pointer flex items-center justify-center text-red-700 dark:text-red-300"
+            [attr.aria-label]="'Delete photo ' + (i + 1)"
+            (click)="remove(image)"
+        >
+            <i class="pi pi-trash text-xs"></i>
+        </button>
+    </div>
+    }
+</div>
+} @else {
+<div class="rounded-2xl border border-dashed border-surface p-8 text-center">
+    <i class="pi pi-image text-2xl! text-muted-color"></i>
+    <p class="text-sm text-muted-color m-0 mt-3">No photos yet. Cars with photos get noticed.</p>
+</div>
+}
+
+<!-- Uploads run one file at a time, so each row's progress means something. -->
+@if (jobs().length) {
+<div class="flex flex-col gap-2 mt-4">
+    @for (job of jobs(); track job.name) {
+    <div class="text-sm">
+        <div class="flex items-center justify-between gap-3">
+            <span class="truncate">{{ job.name }}</span>
+            <span class="text-muted-color shrink-0">{{ job.error ? 'Failed' : job.percent + '%' }}</span>
+        </div>
+        @if (job.error) {
+        <p class="text-xs text-red-600 dark:text-red-400 m-0 mt-1">{{ job.error }}</p>
+        } @else {
+        <div class="h-1.5 rounded-full bg-keyway-shade dark:bg-surface-800 mt-1.5 overflow-hidden">
+            <div class="h-full bg-primary transition-[width] duration-150" [style.width.%]="job.percent"></div>
+        </div>
+        }
+    </div>
+    }
+</div>
+} @if (error()) {
+<p class="text-sm text-red-600 dark:text-red-400 mt-4 mb-0">{{ error() }}</p>
+}
+
+<div class="mt-5">
+    <label class="keyway-cta inline-flex cursor-pointer" [class.opacity-60]="uploading()">
+        <input type="file" class="sr-only" [accept]="acceptAttribute" multiple [disabled]="uploading()" (change)="onFilesSelected($event)" />
+        {{ uploading() ? 'Uploading…' : 'Upload photos' }}
+    </label>
+</div>
+
+<p class="text-xs text-muted-color mt-4 mb-0">Photos cannot be reordered. To change which one is primary, delete the photos above it and upload them again in the order you want.</p>

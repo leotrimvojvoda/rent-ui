@@ -1,0 +1,61 @@
+<div class="max-w-2xl">
+    <!-- Onboarding framing: this is the one thing standing between them and a fleet. -->
+    <div class="keyway-band px-7 py-8 sm:px-9 sm:py-9 mb-6">
+        <div class="keyway-band-blob w-[220px] h-[220px] -right-12 -bottom-16"></div>
+        <div class="relative">
+            <h1 class="font-display font-bold text-2xl sm:text-3xl text-white m-0 mb-2">Create your company</h1>
+            <p class="m-0 text-[15px] text-white/70">Customers rent from a company, not an individual. Set yours up once and you can start listing cars.</p>
+        </div>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="card">
+        <h2 class="keyway-section-title">Company details</h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="sm:col-span-2">
+                <label for="name" class="block text-color font-medium text-sm mb-2">Company name</label>
+                <input pInputText id="name" formControlName="name" type="text" maxlength="150" placeholder="Prishtina Rentals" class="w-full" />
+                <app-field-error [control]="form.controls.name" [messages]="{ required: 'Enter your company name.', maxlength: 'Keep this under 150 characters.' }" />
+            </div>
+
+            <div class="sm:col-span-2">
+                <label for="description" class="block text-color font-medium text-sm mb-2">Description <span class="text-muted-color font-normal">(optional)</span></label>
+                <textarea pTextarea id="description" formControlName="description" rows="3" maxlength="2000" placeholder="Family-run since 2012." class="w-full"></textarea>
+                <app-field-error [control]="form.controls.description" [messages]="{ maxlength: 'Keep this under 2000 characters.' }" />
+                <p class="mt-1.5 mb-0 text-xs text-muted-color">Shown on your cars in the public catalog.</p>
+            </div>
+
+            <div>
+                <label for="cityId" class="block text-color font-medium text-sm mb-2">City</label>
+                <p-select inputId="cityId" formControlName="cityId" [options]="cityOptions()" optionLabel="label" optionValue="value" placeholder="Choose a city" appendTo="body" styleClass="w-full" />
+                <app-field-error [control]="form.controls.cityId" [messages]="{ required: 'Choose the city you operate from.' }" />
+            </div>
+
+            <div>
+                <label for="address" class="block text-color font-medium text-sm mb-2">Address</label>
+                <input pInputText id="address" formControlName="address" type="text" maxlength="255" placeholder="Rruga B 12, 10000" class="w-full" />
+                <app-field-error [control]="form.controls.address" [messages]="{ required: 'Enter your pick-up address.', maxlength: 'Keep this under 255 characters.' }" />
+            </div>
+
+            <div>
+                <label for="contactEmail" class="block text-color font-medium text-sm mb-2">Contact email</label>
+                <input pInputText id="contactEmail" formControlName="contactEmail" type="email" placeholder="company@example.com" class="w-full" />
+                <app-field-error [control]="form.controls.contactEmail" [messages]="{ required: 'Enter a contact email.' }" />
+            </div>
+
+            <div>
+                <label for="contactPhone" class="block text-color font-medium text-sm mb-2">Contact phone</label>
+                <input pInputText id="contactPhone" formControlName="contactPhone" type="tel" placeholder="+38344123456" class="w-full" />
+                <app-field-error [control]="form.controls.contactPhone" [messages]="{ required: 'Enter a contact phone number.' }" />
+            </div>
+        </div>
+
+        <p class="text-xs text-muted-color mt-4 mb-0">Your contact details stay private in the catalog — customers only see them once they have a confirmed rental with you.</p>
+
+        @if (formError()) {
+        <p-message severity="error" [text]="formError()!" styleClass="w-full mt-5" />
+        }
+
+        <button type="submit" class="keyway-cta w-full mt-6" [disabled]="saving()">{{ saving() ? 'Creating…' : 'Create company' }}</button>
+    </form>
+</div>
