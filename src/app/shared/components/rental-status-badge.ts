@@ -37,6 +37,21 @@ export const CLIENT_STATUS_EXPLANATIONS: Record<RentalStatus, string> = {
     EXPIRED: 'Your pick-up time arrived before the company decided, so the request expired automatically. Nothing was charged.'
 };
 
+/**
+ * The same seven statuses from the owner's side. The owner needs to know whose
+ * move it is and whether the car is theirs to re-let, which is a different
+ * question from the one {@link CLIENT_STATUS_EXPLANATIONS} answers.
+ */
+export const OWNER_STATUS_EXPLANATIONS: Record<RentalStatus, string> = {
+    PENDING: 'A customer is waiting on your answer. The car is held for these dates until you decide — if you leave it, the request expires by itself when the pick-up time arrives.',
+    APPROVED: 'You accepted this request and the car is held for these dates. Mark it picked up when you hand over the keys.',
+    ACTIVE: 'The customer has the car. Mark it returned when it comes back — that is what frees the car for new bookings.',
+    COMPLETED: 'The car came back and this rental is closed. It is bookable again for these dates.',
+    REJECTED: 'You turned this request down. The car was released for these dates.',
+    CANCELLED: 'The customer withdrew this request before pick-up. The car was released for these dates.',
+    EXPIRED: 'The pick-up time arrived with no decision, so this request expired on its own and the car was released.'
+};
+
 @Component({
     selector: 'app-rental-status-badge',
     standalone: true,

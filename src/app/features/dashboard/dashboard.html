@@ -60,9 +60,122 @@
     <p class="text-sm text-muted-color m-0 mb-4">Find a car by city and dates — you only pay after the company confirms.</p>
     <a routerLink="/cars" class="keyway-cta no-underline">Browse cars</a>
 </div>
-} } } @else {
+} } } @else if (authService.isOwner()) { @if (loading()) {
+<div class="grid grid-cols-1 md:grid-cols-3 gap-5" aria-hidden="true">
+    <div class="card m-0 h-40 animate-pulse"></div>
+    <div class="card m-0 h-40 animate-pulse"></div>
+    <div class="card m-0 h-40 animate-pulse"></div>
+</div>
+} @else { @if (needsCompany()) {
+<div class="card">
+    <div class="font-semibold text-[17px] mb-1">No company yet</div>
+    <p class="text-sm text-muted-color m-0 mb-4">Customers rent from a company, not an individual. Create yours and you can start adding cars.</p>
+    <a routerLink="/company/setup" class="text-sm font-medium text-primary no-underline">Set up your company →</a>
+</div>
+} @else {
+<!-- The three things an owner actually has to do, each in whichever order matters: -->
+<!-- decide oldest-first (those expire soonest), hand over and take back by date. -->
+@if (pending().length || handovers().length || returns().length) {
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-8">
+    <div class="card m-0">
+        <div class="flex items-center justify-between gap-3 mb-4">
+            <span class="text-xs uppercase tracking-[0.6px] text-muted-color">Waiting on you</span>
+            <span class="font-display font-bold text-lg">{{ pendingCount() }}</span>
+        </div>
+        @if (pending().length) {
+        <ul class="list-none m-0 p-0 flex flex-col gap-3">
+            @for (rental of pending(); track rental.id) {
+            <li>
+                <a [routerLink]="['/company/rentals', rental.id]" class="no-underline text-color block">
+                    <div class="font-medium text-sm">{{ rental.car.make }} {{ rental.car.model }}</div>
+                    <div class="text-xs text-muted-color mt-0.5">{{ clientName(rental) }} · from {{ dateTime(rental.startAt) }}</div>
+                </a>
+            </li>
+            }
+        </ul>
+        <a routerLink="/company/rentals" class="inline-block mt-4 text-sm font-medium text-primary no-underline">Review requests →</a>
+        } @else {
+        <p class="text-sm text-muted-color m-0">Nothing to decide right now.</p>
+        }
+    </div>
+
+    <div class="card m-0">
+        <div class="flex items-center justify-between gap-3 mb-4">
+            <span class="text-xs uppercase tracking-[0.6px] text-muted-color">To hand over</span>
+            <span class="font-display font-bold text-lg">{{ approvedCount() }}</span>
+        </div>
+        @if (handovers().length) {
+        <ul class="list-none m-0 p-0 flex flex-col gap-3">
+            @for (rental of handovers(); track rental.id) {
+            <li>
+                <a [routerLink]="['/company/rentals', rental.id]" class="no-underline text-color block">
+                    <div class="font-medium text-sm">{{ rental.car.make }} {{ rental.car.model }}</div>
+                    <div class="text-xs text-muted-color mt-0.5">{{ clientName(rental) }} · {{ dateTime(rental.startAt) }}</div>
+                </a>
+            </li>
+            }
+        </ul>
+        } @else {
+        <p class="text-sm text-muted-color m-0">No approved rentals awaiting pick-up.</p>
+        }
+    </div>
+
+    <div class="card m-0">
+        <div class="flex items-center justify-between gap-3 mb-4">
+            <span class="text-xs uppercase tracking-[0.6px] text-muted-color">Out now</span>
+            <span class="font-display font-bold text-lg">{{ outNowCount() }}</span>
+        </div>
+        @if (returns().length) {
+        <ul class="list-none m-0 p-0 flex flex-col gap-3">
+            @for (rental of returns(); track rental.id) {
+            <li>
+                <a [routerLink]="['/company/rentals', rental.id]" class="no-underline text-color block">
+                    <div class="font-medium text-sm">{{ rental.car.make }} {{ rental.car.model }}</div>
+                    <div class="text-xs text-muted-color mt-0.5">{{ clientName(rental) }} · due back {{ dateTime(rental.endAt) }}</div>
+                </a>
+            </li>
+            }
+        </ul>
+        } @else {
+        <p class="text-sm text-muted-color m-0">No cars are out with a customer.</p>
+        }
+    </div>
+</div>
+} @if (totalOwnerRentals() > 0) {
+<h2 class="keyway-section-title">Rentals of your cars</h2>
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-5">
+    @for (count of ownerCounts(); track count.status) {
+    <a routerLink="/company/rentals" [queryParams]="{ status: count.status }" class="card m-0 no-underline text-color block">
+        <div class="font-display font-bold text-3xl text-primary">{{ count.value }}</div>
+        <div class="text-sm text-muted-color mt-1">{{ count.label }}</div>
+    </a>
+    }
+</div>
+@if (ownerCountsArePartial()) {
+<p class="text-xs text-muted-color mt-3 mb-0">Counts cover the {{ ownerRentals().length }} most recent rentals of {{ totalOwnerRentals() }}.</p>
+} } @else {
+<div class="card">
+    <div class="font-semibold text-[17px] mb-1">No requests yet</div>
+    <p class="text-sm text-muted-color m-0 mb-4">Requests appear here once a customer books one of your published cars.</p>
+    <a routerLink="/fleet" class="text-sm font-medium text-primary no-underline">Go to your fleet →</a>
+</div>
+} } }
+
+<h2 class="keyway-section-title mt-8">Manage</h2>
 <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-    @for (tile of authService.isOwner() ? ownerTiles : neutralTiles; track tile.link) {
+    @for (tile of ownerTiles; track tile.link) {
+    <a [routerLink]="tile.link" class="card m-0 no-underline text-color block transition-[transform,box-shadow] duration-150 hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(15,40,30,0.12)]">
+        <div class="w-10 h-10 rounded-xl bg-primary-50 dark:bg-surface-800 flex items-center justify-center mb-4">
+            <i [class]="tile.icon" class="text-primary"></i>
+        </div>
+        <div class="font-semibold text-[17px]">{{ tile.title }}</div>
+        <div class="text-sm text-muted-color leading-relaxed mt-1.5">{{ tile.body }}</div>
+    </a>
+    }
+</div>
+} @else {
+<div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+    @for (tile of neutralTiles; track tile.link) {
     <a [routerLink]="tile.link" class="card m-0 no-underline text-color block transition-[transform,box-shadow] duration-150 hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(15,40,30,0.12)]">
         <div class="w-10 h-10 rounded-xl bg-primary-50 dark:bg-surface-800 flex items-center justify-center mb-4">
             <i [class]="tile.icon" class="text-primary"></i>

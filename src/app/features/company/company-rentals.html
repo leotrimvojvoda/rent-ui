@@ -1,0 +1,96 @@
+<div class="max-w-4xl">
+    <h1 class="font-display font-bold text-2xl m-0 mb-1">Rental requests</h1>
+    <p class="text-muted-color text-sm m-0 mb-5">@if (showingDefault()) { Requests waiting on your decision. An undecided request expires by itself when its pick-up time arrives. } @else { Rentals of your cars, newest first. }</p>
+
+    <!-- One status at a time, which is what the API accepts. -->
+    <div class="flex gap-2 overflow-x-auto pb-2 mb-5 -mx-1 px-1">
+        @for (filter of statusFilters; track filter.label) {
+        <button
+            type="button"
+            class="shrink-0 px-3.5 py-2 rounded-full text-sm font-medium cursor-pointer border transition-colors"
+            [class]="activeStatus() === filter.value ? 'bg-primary text-primary-contrast border-primary' : 'bg-surface-0 dark:bg-surface-900 text-muted-color border-surface hover:text-color'"
+            [attr.aria-pressed]="activeStatus() === filter.value"
+            (click)="selectStatus(filter.value)"
+        >
+            {{ filter.label }}
+        </button>
+        }
+    </div>
+
+    @if (conflict()) {
+    <p-message severity="warn" [text]="conflict()!" styleClass="w-full mb-5" />
+    } @if (loading()) {
+    <div class="flex flex-col gap-4" aria-hidden="true">
+        @for (skeleton of skeletons; track skeleton) {
+        <div class="card m-0">
+            <div class="h-5 w-1/3 rounded bg-keyway-shade dark:bg-surface-800 animate-pulse"></div>
+            <div class="h-4 w-1/2 rounded bg-keyway-shade dark:bg-surface-800 animate-pulse mt-3"></div>
+            <div class="h-4 w-1/4 rounded bg-keyway-shade dark:bg-surface-800 animate-pulse mt-3"></div>
+        </div>
+        }
+    </div>
+    } @else if (failed()) {
+    <div class="card">
+        <app-empty-state icon="pi pi-exclamation-triangle" title="We couldn't load your requests" message="Something went wrong reaching the server. Refresh the page to try again." />
+    </div>
+    } @else if (rentals().length === 0) {
+    <div class="card">
+        @if (showingDefault()) {
+        <app-empty-state icon="pi pi-check-circle" title="Nothing waiting on you" message="Every request has been answered. New ones land here as customers make them." actionLabel="See all rentals" (actionClick)="selectStatus(null)" />
+        } @else if (activeStatus()) {
+        <app-empty-state icon="pi pi-filter" title="Nothing with that status" message="No rentals of your cars are in this state right now." actionLabel="See all rentals" (actionClick)="selectStatus(null)" />
+        } @else {
+        <app-empty-state icon="pi pi-inbox" title="No rentals yet" message="Once your cars are published, requests for them show up here." actionLabel="Go to your fleet" actionLink="/fleet" />
+        }
+    </div>
+    } @else {
+    <div class="flex flex-col gap-4">
+        @for (rental of rentals(); track rental.id) {
+        <!-- A card rather than a link, because the action buttons cannot live inside an anchor. -->
+        <div class="card m-0">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <a [routerLink]="['/company/rentals', rental.id]" class="font-semibold text-[17px] text-color no-underline hover:text-primary">{{ rental.car.make }} {{ rental.car.model }}</a>
+                    <div class="text-sm text-muted-color mt-0.5">{{ rental.car.modelYear }} · <span class="font-mono text-xs">{{ rental.car.licensePlate }}</span></div>
+                </div>
+                <app-rental-status-badge [status]="rental.status" />
+            </div>
+
+            <div class="flex flex-wrap items-end justify-between gap-4 mt-4">
+                <div class="text-sm">
+                    <div class="text-muted-color text-xs uppercase tracking-[0.6px] mb-1">Customer</div>
+                    <div class="font-medium">{{ clientName(rental) }}</div>
+                    <div class="text-muted-color text-xs mt-0.5">{{ rental.client.email }}</div>
+                </div>
+                <div class="text-sm">
+                    <div class="text-muted-color text-xs uppercase tracking-[0.6px] mb-1">Dates</div>
+                    <div>{{ dateTime(rental.startAt) }} → {{ dateTime(rental.endAt) }}</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-muted-color text-xs uppercase tracking-[0.6px] mb-1">Total</div>
+                    <div class="font-display font-bold text-lg text-primary">{{ money(rental.totalPrice) }}</div>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3 mt-5 pt-4 border-t border-surface">
+                @for (action of actions(rental); track action.action) { @if (action.tone === 'primary') {
+                <button type="button" class="keyway-cta text-sm!" [disabled]="isBusy(rental.id)" (click)="run(rental, action)">{{ isBusy(rental.id) ? action.busyLabel : action.label }}</button>
+                } @else {
+                <button
+                    type="button"
+                    class="px-4 py-2.5 rounded-xl border border-red-300 dark:border-red-900 bg-transparent text-sm font-medium text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950 cursor-pointer"
+                    [disabled]="isBusy(rental.id)"
+                    (click)="run(rental, action)"
+                >
+                    {{ isBusy(rental.id) ? action.busyLabel : action.label }}
+                </button>
+                } }
+                <a [routerLink]="['/company/rentals', rental.id]" class="text-sm text-muted-color no-underline hover:text-color ml-auto">Details</a>
+            </div>
+        </div>
+        }
+    </div>
+
+    <app-pager [page]="page()" [size]="pageSize" [totalElements]="totalElements()" [totalPages]="totalPages()" (pageChange)="onPageChange($event)" />
+    }
+</div>

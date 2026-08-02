@@ -8,6 +8,8 @@ import { AppPublicLayout } from './core/layout/component/app.publiclayout';
 import { CarDetail } from './features/catalog/car-detail';
 import { Catalog } from './features/catalog/catalog';
 import { CompanyProfile } from './features/company/company-profile';
+import { CompanyRentalDetail } from './features/company/company-rental-detail';
+import { CompanyRentals } from './features/company/company-rentals';
 import { CompanySetup } from './features/company/company-setup';
 import { CarEdit } from './features/fleet/car-edit';
 import { Fleet } from './features/fleet/fleet';
@@ -53,12 +55,15 @@ export const appRoutes: Routes = [
             },
             {
                 path: 'company/rentals',
-                component: PlaceholderPage,
+                component: CompanyRentals,
                 canActivate: [roleGuard('OWNER'), ownerCompanyGuard],
-                data: {
-                    breadcrumb: 'Rental requests',
-                    ...soon('Rental requests', 'Requests for your cars will be reviewed here.', 'pi pi-inbox')
-                }
+                data: { breadcrumb: 'Rental requests' }
+            },
+            {
+                path: 'company/rentals/:rentalId',
+                component: CompanyRentalDetail,
+                canActivate: [roleGuard('OWNER'), ownerCompanyGuard],
+                data: { breadcrumb: 'Request' }
             },
             {
                 path: 'company',

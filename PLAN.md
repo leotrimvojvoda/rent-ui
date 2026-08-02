@@ -271,9 +271,17 @@ Owner-company guard live; company setup + profile (resolve the `city` shape ambi
 *Acceptance*: a fresh owner is forced through setup exactly once; a created, photographed, tiered, published ACTIVE car appears in the anonymous catalog with the right "from" price; duplicate plate shows on the plate field; unpublishing removes it from the catalog (detail URL → unavailable state); fleet table and car edit checked in dark mode and at 360 px.
 
 ### Phase 6 — Owner: rental request workflow
-Company rentals list (PENDING-first queue), detail with status timeline, four guarded actions with confirms and response-driven updates, `INVALID_RENTAL_TRANSITION` → refetch, owner dashboard widgets.
+**Queue — `/company/rentals`; request detail — `/company/rentals/:rentalId`.** Four guarded actions with confirms and response-driven updates, `INVALID_RENTAL_TRANSITION` → refetch, owner dashboard widgets.
 *Design*: the request queue reuses the Phase 4 rental card with an actions row; the status timeline is a horizontal stepper in brand green with muted dead-ends for rejected/cancelled/expired. Approve is the lime CTA; reject is `severity="danger"` text — never two lime buttons side by side.
 *Acceptance*: full happy path PENDING → APPROVED → ACTIVE → COMPLETED drivable from the UI; car returns to availability after completion; approving a just-cancelled request shows the conflict and refreshed state; dark mode and 360 px checked.
+
+*As built*:
+- **"PENDING-first" is a default filter, not a sort.** The API filters one status at a time and pages server-side, so re-sorting client-side would only reorder the page you happen to be on. The queue therefore opens on `status=PENDING`; an absent `status` param means pending, and `?status=all` is the explicit way to ask for everything.
+- **Dead ends draw two steps, not four.** A rental can be cancelled from either PENDING or APPROVED and the status alone cannot say which, so the timeline renders `Requested → Rejected/Cancelled/Expired` and never fills in the middle rather than guessing that "Approved" was reached.
+- **APPROVED offers only the handover.** There is no owner-side undo: reject is PENDING-only, and after approving, only the customer can back out (before pick-up). The action table in `features/company/rental-actions.ts` is the single source for this — don't add a reject button to APPROVED.
+- **Approve/reject notify the customer; activate/complete do not** (`NotificationType` has no event for either). The confirm dialogs say so, so the owner knows the handover record is silent.
+- A pending request whose pick-up time has already passed shows a warning on the detail page: the expiry job has not run yet, and approving it would commit the car to dates that have already started.
+- `/dashboard` is not behind `ownerCompanyGuard`, so the owner widgets resolve the cached company context first and prompt for setup instead of firing a request certain to 409.
 
 ### Phase 7 — Notifications
 Replace template bell wiring: new model (7 event types, `rentalId`), paged GET, **POST** verbs (template currently uses PUT), separate `unread-count` endpoint with polling (60 s, visibility-aware, focus refresh, starts on login/stops on logout), popover + role-aware deep links, mark-read/read-all, full page with `unreadOnly` toggle.
