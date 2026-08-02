@@ -1,4 +1,7 @@
 <div class="max-w-3xl">
+    <!-- The list swaps under a screen reader with no visual cue to follow, so its
+         state is announced. The skeletons themselves stay aria-hidden. -->
+    <p class="sr-only" role="status">{{ loading() ? 'Loading…' : totalElements() + ' notifications' }}</p>
     <h1 class="font-display font-bold text-2xl m-0 mb-1">Notifications</h1>
     <p class="text-muted-color text-sm m-0 mb-5">Everything that happened to your rentals, newest first. Opening one takes you to the rental it is about.</p>
 

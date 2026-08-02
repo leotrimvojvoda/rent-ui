@@ -133,6 +133,23 @@ export class AuthService {
         return request.pipe(tap(() => this.clearSession()));
     }
 
+    /**
+     * Ends a session the server has already rejected, and reports whether this
+     * caller was the one that ended it.
+     *
+     * A refresh failure is delivered to every request that was waiting on that
+     * single refresh, so without this only the first of them should tell the user
+     * anything — otherwise one dead session produces a toast and a navigation per
+     * in-flight request.
+     */
+    endExpiredSession(): boolean {
+        if (!this.tokens.hasSession()) {
+            return false;
+        }
+        this.clearSession();
+        return true;
+    }
+
     /** Drops tokens and every piece of session-scoped state. */
     clearSession(): void {
         this.tokens.clear();

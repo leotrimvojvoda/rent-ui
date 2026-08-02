@@ -1,186 +1,111 @@
 # Keyway (rent-ui)
 
-The Angular 20 frontend of the Rent-API car-rental marketplace, built on PrimeNG and Tailwind CSS v4.
+The Angular 20 frontend of the Rent-API car-rental marketplace. Two personas share one app: **clients** browse a public catalog and request cars, **owners** run a company, a fleet, and the rental requests that come in for it.
 
-> Being built in phases against `PLAN.md`. Phase 1 (API models, token/session core, interceptors, guards, route skeleton) is in place; the rest of the sections below still describe the starter template it grew out of and are refreshed in Phase 8.
+Built with PrimeNG 20 and Tailwind CSS v4. It grew out of the sakai-ng template, but little of that is left.
 
 ## Running against the backend
 
+```bash
+npm install
+npm start          # dev server on http://localhost:4200
+```
+
 The dev build talks to `http://localhost:8080/api/v1` (`src/environments/environment.development.ts`).
 
-**The backend must allow this origin.** Add `http://localhost:4200` to the Rent-API `CORS_ALLOWED_ORIGINS` environment variable, or every request from the dev server fails as a network error before it is ever authenticated.
+**The backend must allow this origin.** Add `http://localhost:4200` to the Rent-API `CORS_ALLOWED_ORIGINS` environment variable, or every request fails as a network error before it is ever authenticated.
 
 The API contract lives in the backend repo (`API.md`, `BACKEND.md`) and is authoritative — it is not vendored here.
 
-## Tech Stack
+### Commands
 
-| Layer | Library |
-|-------|---------|
-| Framework | Angular 20 (standalone components, signals) |
-| UI Components | PrimeNG 20 + PrimeIcons 7 |
-| Theming | @primeuix/themes (Aura / Lara / Nora presets) |
-| CSS | Tailwind CSS v4 via PostCSS + tailwindcss-primeui |
-| Charts | Chart.js 4.4.2 |
-| HTTP | Angular HttpClient with interceptors |
-| State | Angular Signals + RxJS 7.8 |
-| Language | TypeScript 5.8 |
+| Command | What it does |
+|---|---|
+| `npm start` | Dev server (`npm run start:staging` for the staging API) |
+| `npm run build` | Production build (`build:staging` for staging) |
+| `npm run watch` | Development build, rebuilding on change |
+| `npm run format` | Prettier over the tree — settings in `.prettierrc` |
+| `npm test` | Karma. **There are no spec files yet.** |
 
-## Features
+## What it does
 
-- **Authentication** — Login, register, JWT token management, auto-attach Bearer header, logout on 401
-- **Role-based access control** — `authGuard` + `roleGuard` for route protection
-- **Dark / Light / System theme** — persisted to `localStorage`, responds to OS preference
-- **Live theme configurator** — floating panel to switch PrimeNG preset, primary color, and surface palette at runtime
-- **Admin layout shell** — sidebar, topbar, footer, breadcrumbs auto-generated from route metadata
-- **User profile** — view and edit first name, last name, email via `GET/PUT /users/{id}`
-- **Global toast notifications** — success / error / info / warn via `ToastService`
-- **HTTP loading bar** — progress bar tracks all in-flight requests via `LoadingInterceptor`
-- **Global error handling** — `ErrorInterceptor` handles 401, 403, 404, and 5xx responses
-- **Confirmation dialogs** — powered by PrimeNG `ConfirmationService`
-- **Mock auth mode** — bypass the backend during development with a locally generated JWT
+**Public** — landing page with an availability search; catalog with city, date, price and seat filters, all serialized into the URL; car detail with gallery, price tiers and the company behind the car.
 
-## Project Structure
+**Client** — signup with email verification, booking with a live price estimate, rentals list and detail with the company's pick-up contact, cancellation any time before pick-up.
+
+**Owner** — company setup and profile, fleet with publish toggles, car create/edit with an image manager and a price-tier editor, and the rental request queue: approve, reject, mark picked up, mark returned.
+
+**Both** — notifications with a polled unread badge, light/dark/system theme, a session that survives a reload.
+
+Deliberately **not** built, because the API has no support for it: profile editing, changing a password while signed in, admin screens, payments, reviews, favourites, chat, OAuth, image reordering, real-time push. See `PLAN.md` §7.
+
+## Architecture
 
 ```
-src/
-├── app/
-│   ├── core/
-│   │   ├── guards/
-│   │   │   ├── auth.guard.ts              # Redirect unauthenticated users to /auth/login
-│   │   │   └── role.guard.ts              # Role-based route protection
-│   │   ├── interceptors/
-│   │   │   ├── auth.interceptor.ts        # Attach Authorization: Bearer header
-│   │   │   ├── error.interceptor.ts       # Handle 401 / 403 / 404 / 5xx globally
-│   │   │   └── loading.interceptor.ts     # Track active requests for progress bar
-│   │   ├── layout/
-│   │   │   ├── component/
-│   │   │   │   ├── app.layout.ts          # Authenticated shell wrapper
-│   │   │   │   ├── app.topbar.ts          # Top navigation bar
-│   │   │   │   ├── app.sidebar.ts         # Collapsible sidebar
-│   │   │   │   ├── app.menu.ts            # Menu item definitions
-│   │   │   │   ├── app.menuitem.ts        # Recursive menu item component
-│   │   │   │   ├── app.breadcrumb.ts      # Dynamic breadcrumbs
-│   │   │   │   ├── app.footer.ts          # Page footer
-│   │   │   │   ├── app.configurator.ts    # Runtime theme configurator panel
-│   │   │   │   └── app.floatingconfigurator.ts  # Floating trigger button
-│   │   │   └── service/
-│   │   │       └── layout.service.ts      # Theme mode, dark toggle, sidebar state
-│   │   ├── models/
-│   │   │   ├── auth.model.ts              # LoginCredentials, AuthResponse
-│   │   │   ├── user.model.ts              # UserResponse, UpdateUserRequest
-│   │   │   └── notification.model.ts      # NotificationItem
-│   │   └── services/
-│   │       ├── auth.service.ts            # Login, register, currentUser signal
-│   │       ├── jwt.service.ts             # Token storage and JWT decoding
-│   │       ├── user.service.ts            # GET / PUT /users/{id}
-│   │       ├── toast.service.ts           # Success / error / info / warn toasts
-│   │       ├── loading.service.ts         # activeRequests counter signal
-│   │       ├── breadcrumb.service.ts      # Build breadcrumbs from route data
-│   │       ├── notification.service.ts    # Notification list management
-│   │       ├── confirmation.service.ts    # Confirmation dialog wrapper
-│   │       └── page-title.strategy.ts     # Custom TitleStrategy
-│   ├── features/
-│   │   ├── auth/                          # Public pages (no guard)
-│   │   │   ├── login.ts
-│   │   │   ├── register.ts
-│   │   │   ├── access.ts                  # 403 Forbidden
-│   │   │   ├── error.ts                   # Generic error
-│   │   │   └── auth.routes.ts
-│   │   ├── dashboard/                     # Home page (guard-protected)
-│   │   ├── profile/                       # Edit profile (guard-protected)
-│   │   ├── settings/                      # Theme switcher (guard-protected)
-│   │   ├── notifications/                 # Notification bell
-│   │   └── notfound/                      # 404 page
-│   ├── shared/
-│   │   └── components/
-│   │       └── empty-state.ts
-│   ├── app.component.ts
-│   ├── app.config.ts                      # Providers, interceptors, PrimeNG config
-│   └── app.routes.ts
-├── assets/
-│   ├── tailwind.css                       # Tailwind v4 entry + custom dark variant
-│   ├── layout/                            # SCSS partials for layout shell
-│   └── styles.scss                        # Global styles entry
-└── environments/
-    ├── environment.ts
-    ├── environment.development.ts
-    └── environment.staging.ts
+src/app/
+├── core/
+│   ├── errors/         # api-error.ts — the one error-code → copy map
+│   ├── forms/          # server-error binding, countdown helper
+│   ├── guards/         # auth, role, app-shell, owner-company
+│   ├── http/           # HttpContext tokens (skipErrorToast)
+│   ├── interceptors/   # loading → error → auth (outermost first)
+│   ├── layout/         # app shell + public shell, LayoutService
+│   ├── models/         # one file per API resource
+│   ├── services/       # one per API area, plus session and UI services
+│   └── theme/          # keyway-preset.ts — the PrimeNG preset
+├── features/           # one folder per area; routes live in app.routes.ts
+└── shared/
+    ├── components/     # car card, pager, badges, empty state, notification row
+    └── utils/          # money and date formatting, day-count estimate
 ```
 
-## Routing
+Routes are declared in one place, `src/app/app.routes.ts`. The authenticated shell and the public site are **two sibling routes both at path `''`**; the shell carries a `canMatch` guard listing its own top-level segments, so the public site owns everything else without relying on router backtracking.
 
-All authenticated pages are children of the `AppLayout` shell route and protected by `authGuard`. Auth pages use their own full-page layout outside the shell.
+### Auth and session
 
-| Path | Page | Guard |
-|------|------|-------|
-| `/` | Dashboard | `authGuard` |
-| `/profile` | Profile | `authGuard` |
-| `/settings` | Settings | `authGuard` |
-| `/auth/login` | Login | — |
-| `/auth/register` | Register | — |
-| `/auth/access` | 403 Forbidden | — |
-| `/auth/error` | Error | — |
-| `/notfound` | 404 | — |
-| `**` | → `/notfound` | — |
+Tokens are an **access/refresh pair** held by `TokenStorageService`. Identity comes from `GET /auth/me` — never from decoded JWT claims, since claim names are not part of the documented contract. `AuthService.currentUser` is a signal, populated at startup by `provideAppInitializer`.
 
-To add a protected page: create `src/app/features/my-feature/`, add the component, and register the route inside the `AppLayout` children in `app.routes.ts`.
+`authInterceptor` attaches the bearer, and on a 401 refreshes **once for the whole burst**: concurrent requests share one in-flight refresh, so a rotating refresh token is never spent twice. If that refresh fails the session ends, and only the caller that actually ends it toasts and redirects — otherwise one dead session produces a toast per in-flight request.
 
-## Authentication
+### Errors
 
-1. `AuthService.login()` posts credentials to `POST /auth/sign-in` and stores the returned JWT via `JwtService.saveToken()`.
-2. The JWT payload contains `id` (UUID), `sub` (email), `roles`, and `exp`. Read them with `jwtService.getAttribute('id')` — no extra API call needed.
-3. `authInterceptor` reads the token from `localStorage` and sets `Authorization: Bearer <token>` on every outbound request.
-4. `errorInterceptor` catches 401 responses, clears the token, and redirects to `/auth/login`.
-5. The login page includes a **No Backend** toggle that generates a mock JWT locally — useful for UI development without a running server.
+`core/errors/api-error.ts` is the single map from the API's error `code` to user-facing copy, and it is complete against `API.md`. **Branch on `code`, never on `message`** — `code` is a stable contract, `message` is localised copy.
 
-## Theme System
+`PAGE_OWNED_CODES` lists the codes the global interceptor never toasts — validation, auth branches, business conflicts, upload failures — because the page that made the call renders them inline where the user can act on them. Everything left over (network failures, 5xx, unknown codes) gets a toast.
 
-`LayoutService` owns all theme state:
+### Design system
 
-- **`ThemeMode`** — `'light' | 'dark' | 'system'` persisted to `localStorage` under the key `themeMode`.
-- System mode listens to `matchMedia('(prefers-color-scheme: dark)')` and reacts automatically.
-- Dark mode is activated by toggling the `app-dark` class on `<html>`.
-- The floating configurator lets you switch the PrimeNG **preset** (Aura / Lara / Nora), **primary color**, and **surface palette** at runtime via `updatePreset` / `updateSurfacePalette` from `@primeuix/themes`.
+`PLAN.md` §3 is the authority. In short:
 
-Call `layoutService.setThemeMode(mode)` from any component to change the theme.
+- **Palette and radii** come from `core/theme/keyway-preset.ts`, a `definePreset` over Aura. PrimeNG components and the layout SCSS read the same `--p-*` tokens, so the brand is applied in one place rather than per page.
+- **Shell and `.keyway-*` classes** live in `src/assets/layout/_keyway.scss`.
+- **Brand utilities** (`bg-keyway-green`, `font-display`, …) come from the `@theme` block in `src/assets/tailwind.css`.
+- Fonts are Sora (display) and Instrument Sans (body). Green `#0f4c3a`, lime `#d7f26a`, cream `#f7f6f3`.
+- One lime CTA per screen. Red is reserved for destructive actions and the notification badge.
 
-The Tailwind dark variant is `app-dark` (not the default `dark`), configured in `tailwind.css`:
+There is no runtime theme configurator — the brand is fixed. Only light/dark/system remain, owned by `LayoutService` and persisted under the `themeMode` key. Dark mode toggles the `app-dark` class on `<html>`.
 
-```css
-@custom-variant dark (&:where(.app-dark, .app-dark *));
-```
+### Adding a page
 
-## Adding a Domain Service
+Create `features/my-area/`, add the component, and register the route in `app.routes.ts` under the shell's `children` with `data: { breadcrumb: 'Page name' }` — the breadcrumb trail and the document title both read it. A detail page declared as a flat route can name its list with `breadcrumbParent`.
 
-Follow the `UserService` pattern in `core/services/`:
+### CSS gotcha
 
-- Inject `HttpClient`, use `environment.apiUrl` as the base URL.
-- Place models in `core/models/` alongside the existing ones.
+Tailwind v4 runs through PostCSS, and Angular's esbuild builder only reads **`postcss.config.json`** — JSON, not `.js`. Restart the dev server after changing it. `@source "../app"` in `tailwind.css` is what makes Tailwind scan Angular templates; templates outside `src/app/` need their own `@source`. The dark variant is `app-dark`, not `dark`, so write `dark:` as usual and it maps across.
 
-## Backend Contract
+## Environments
 
-Expects a REST API at the URL defined in `src/environments/environment.ts`.
+| Config | File | `apiUrl` |
+|---|---|---|
+| development | `environment.development.ts` | `http://localhost:8080/api/v1` |
+| staging | `environment.staging.ts` | `https://staging-api.example.com/api/v1` |
+| production | `environment.ts` | `https://api.example.com/api/v1` |
 
-| Method | Path | Auth |
-|--------|------|------|
-| `POST` | `/auth/sign-in` | Public |
-| `POST` | `/users` | Public (register) |
-| `GET` | `/users/{id}` | Bearer |
-| `PUT` | `/users/{id}` | Bearer |
+`currencySymbol` is **assumed to be EUR** — the API sends money as a plain JSON number with no currency in the contract. If that assumption is wrong, change it in one place.
 
-## Commands
+## Known gaps
 
-```bash
-npm start              # Dev server → http://localhost:4200
-npm run start:staging  # Dev server with staging environment
-npm run build          # Production build
-npm run watch          # Dev build in watch mode
-npm run format         # Run Prettier over all .ts, .html, .js files
-npm test               # Run unit tests via Karma
-```
-
-## CSS / Tailwind Notes
-
-- Angular 20's esbuild builder reads **`postcss.config.json`** (JSON format only, not `.js`). Restart the dev server after any changes to this file.
-- The `@source "../app"` directive in `tailwind.css` tells Tailwind where to scan for class names. Add additional `@source` directives if you place templates outside `src/app/`.
-- Use the `dark:` utility prefix as normal — it maps to the custom `app-dark` variant automatically.
+- **No tests.** `npm test` is wired up but there are no spec files.
+- **`npx eslint` fails** — the flat config has an unsupported `root` key. Pre-existing.
+- **Nothing has been verified in a real browser.** No dark-mode, responsive or screen-reader pass has actually been run; the code follows the rules but the rendering is unconfirmed. See `PLAN.md` Phase 8.
+- `chart.js` is still a dependency but nothing imports it.

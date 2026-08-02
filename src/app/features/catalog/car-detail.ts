@@ -68,6 +68,10 @@ export class CarDetail {
         return rows;
     });
 
+    money(amount: number | null | undefined): string {
+        return formatMoney(amount);
+    }
+
     constructor() {
         const params = this.route.snapshot.queryParamMap;
         this.pickupAt.set(parseDate(params.get('availableFrom')));

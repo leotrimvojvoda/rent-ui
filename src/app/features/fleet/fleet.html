@@ -1,4 +1,7 @@
 <div>
+    <!-- The list swaps under a screen reader with no visual cue to follow, so its
+         state is announced. The skeletons themselves stay aria-hidden. -->
+    <p class="sr-only" role="status">{{ loading() ? 'Loading…' : totalElements() + ' cars' }}</p>
     <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
             <h1 class="font-display font-bold text-2xl m-0 mb-1">Your fleet</h1>

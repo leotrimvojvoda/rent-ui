@@ -1,183 +1,127 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code (claude.ai/code) when working in this repository.
 
-> **Partly stale as of Phase 1.** This repo is being built out against `PLAN.md` (Rent-API car-rental frontend, product name **Keyway**). Phase 1 replaced the auth core: there is no `JwtService` (tokens live in `TokenStorageService` as an access/refresh pair), no `UserService` or profile page, identity comes from `GET /auth/me`, and the routes below are superseded by `src/app/app.routes.ts`. It also introduced the **Keyway design system** — see `PLAN.md` §3 before styling anything. In short: the palette, radii and form fields come from `src/app/core/theme/keyway-preset.ts` (a PrimeNG preset), the shell and `.keyway-*` component classes from `src/assets/layout/_keyway.scss`, brand Tailwind utilities from `@theme` in `src/assets/tailwind.css`; fonts are Sora (display) and Instrument Sans (body); the runtime theme configurator is gone and the brand is fixed, with only light/dark/system remaining. Trust `PLAN.md`, the backend's `API.md`, and the source over the sections marked *Auth flow*, *Role guard*, *Routing*, *Notification bell*, *Theme / dark mode* and *Backend contract* here until Phase 8 rewrites them.
+**Keyway** is the Angular 20 frontend of Rent-API, a car-rental marketplace with two personas: clients who browse and book, owners who run a company and a fleet. It was built phase by phase against `PLAN.md`, which remains the authority on scope, the design system (§3) and what is deliberately out of scope (§7). The backend's `API.md` is the authority on the contract; it is not vendored here.
 
 ## Commands
 
 ```bash
-# Development
-npm start             # Dev server at http://localhost:4200 (requires restart to pick up postcss.config.json changes)
-npm start:staging     # Dev server using staging environment
-npm run build         # Production build
-npm run build:staging # Staging build
-npm run watch         # Development build with watch mode
-
-# Linting & formatting
-npm run format        # Prettier over all .ts, .html, .js files
-
-# Testing
-npm test              # Run all tests via Karma
+npm start             # Dev server at http://localhost:4200
+                      # (restart it to pick up postcss.config.json changes)
+npm run start:staging # Dev server against the staging API
+npm run build         # Production build — the check that actually matters
+npm run build:staging
+npm run watch         # Development build in watch mode
+npm run format        # Prettier; settings in .prettierrc
+npm test              # Karma — there are no spec files yet
 ```
 
-## Architecture
+`npx eslint` currently fails: the flat config has an unsupported `root` key. Pre-existing, unrelated to app code.
 
-### Package structure
+## Verifying a change
+
+There is **no browser and no test suite** in this environment, so verification means:
+
+1. `npx ng build --configuration production` — clean, including no warnings.
+2. `npx ng serve` on a spare port and `curl` the affected routes for a 200.
+3. For CSS: grep the built `dist/rent-ui/browser/styles-*.css` for the class or token you added.
+
+Never claim a visual result. Say what was and was not verified.
+
+## Architecture
 
 ```
 src/app/
 ├── core/
-│   ├── guards/         # authGuard, roleGuard — route protection
-│   ├── interceptors/   # authInterceptor, errorInterceptor, loadingInterceptor
-│   ├── layout/
-│   │   ├── component/  # AppLayout shell + topbar, sidebar, menu, footer, breadcrumb
-│   │   └── service/    # LayoutService — dark mode, theme mode, sidebar state
-│   ├── models/         # auth.model.ts, user.model.ts, notification.model.ts
-│   └── services/       # AuthService, JwtService, UserService, ToastService,
-│                       # LoadingService, BreadcrumbService, NotificationService,
-│                       # ConfirmDialogService, PageTitleStrategy
-├── features/
-│   ├── auth/           # login, register, access-denied, error pages (outside AppLayout)
-│   ├── dashboard/      # home page (inside AppLayout, guard-protected)
-│   ├── notifications/  # NotificationBell component (used in topbar)
-│   ├── profile/        # edit profile — uses currentUser signal
-│   ├── settings/       # theme switcher (light/dark/system) + change-password stub
-│   └── notfound/       # 404 page
+│   ├── errors/         # api-error.ts — the one error-code → copy map
+│   ├── forms/          # server-error binding, countdown helper
+│   ├── guards/         # auth, role, app-shell, owner-company
+│   ├── http/           # HttpContext tokens (skipErrorToast)
+│   ├── interceptors/   # loading → error → auth (outermost first)
+│   ├── layout/         # app shell + public shell, LayoutService
+│   ├── models/         # one file per API resource
+│   ├── services/       # one per API area, plus session and UI services
+│   └── theme/          # keyway-preset.ts — the PrimeNG preset
+├── features/           # one folder per area; all routes live in app.routes.ts
 └── shared/
-    └── components/     # EmptyState — reusable "no data" placeholder
+    ├── components/     # car card, pager, badges, empty state, notification row
+    └── utils/          # money and date formatting, day-count estimate
 ```
+
+Angular 20 idiom throughout: standalone components, signals (`signal`, `computed`, `input.required`, `output`), `@if`/`@for`/`@switch` control flow, `takeUntilDestroyed`. Match it.
 
 ### Routing
 
-All authenticated pages live as children of the root `AppLayout` route, which is protected by `authGuard`. Auth pages (`/auth/*`) are outside `AppLayout` and use their own full-page layout.
+`src/app/app.routes.ts` holds every route. The authenticated shell and the public site are **two sibling routes both at path `''`** — the shell carries `canMatch: [appShellMatch]`, which lists its own top-level segments, so the public site owns everything else without relying on router backtracking. **Adding a new top-level authenticated segment means adding it to `APP_SHELL_SEGMENTS` too**, or it will fall through to the public site and 404.
 
-Each route carries a `data.breadcrumb` property used by both the breadcrumb trail and the page title strategy.
+Every route carries `data.breadcrumb`; detail pages declared as flat routes name their list with `data.breadcrumbParent`. Both the breadcrumb trail and the document title read this.
 
-```
-/                → Dashboard (authGuard)    breadcrumb: 'Home'
-/profile         → Profile  (authGuard)    breadcrumb: 'Profile'
-/settings        → Settings (authGuard)    breadcrumb: 'Settings'
-/auth/login      → Login    (no guard)
-/auth/register   → Register (no guard)
-/auth/access     → 403 page
-/auth/error      → generic error page
-/notfound        → 404 page
-```
+Owner routes carry `[roleGuard('OWNER'), ownerCompanyGuard]`; `company/setup` uses `companySetupGuard` instead, which is the inverse.
 
-To add a new protected page: create `features/my-feature/`, add the component and route inside the root `AppLayout` children in `app.routes.ts` with a `data: { breadcrumb: 'Page Name' }` property.
+### Auth and session
 
-### Auth flow
+- Tokens are an **access/refresh pair** in `TokenStorageService`. There is no `JwtService`.
+- Identity comes from `GET /auth/me`, **never** from decoded JWT claims — claim names are not in the contract.
+- `AuthService.currentUser` / `role` / `isClient` / `isOwner` are signals; `provideAppInitializer` populates them at startup.
+- `authInterceptor` refreshes **once per burst**: concurrent 401s share one in-flight refresh, so a rotating refresh token is never spent twice.
+- When a refresh fails, `AuthService.endExpiredSession()` returns whether *this* caller ended the session — only that one toasts and redirects.
 
-1. `JwtService` stores the raw JWT in `localStorage` under the key `token`.
-2. The JWT payload includes `id` (UUID), `sub` (email), and `roles`. Use `jwtService.getAttribute('id')` etc. to read them without a separate API call.
-3. `authInterceptor` reads the token and sets the `Authorization: Bearer` header on every outbound request.
-4. `AuthService.login()` → `POST /auth/sign-in`; `AuthService.register()` → `POST /users`.
-5. `AuthService.currentUser` is a readonly signal populated on login and on app startup via `APP_INITIALIZER`. Use `authService.currentUser()` to read the user from any component.
-6. `AuthService.isLoggedIn` is a computed signal derived from `currentUser`.
-7. On 401 responses, `errorInterceptor` destroys the token, redirects to login, and shows a toast.
+### Errors
 
-### Role guard
+`core/errors/api-error.ts` is the single error-code → copy map, complete against `API.md`.
 
-Use `roleGuard` to restrict routes by role. It reads the `roles` array from the JWT and redirects to `/auth/access` if the user lacks the required role.
+- **Branch on `code`, never on `message`.** `code` is a stable contract; `message` is localised copy.
+- `PAGE_OWNED_CODES` are the codes the interceptor never toasts, because the page that made the call renders them inline where the user can act on them. A new business conflict handled inline belongs in that set.
+- `skipErrorToast()` on a request silences the interceptor for calls whose failure the caller fully owns.
+- Helpers: `errorCodeOf`, `hasErrorCode`, `errorMessage`, `fieldErrorsOf`, `retryAfterSeconds`.
 
-```ts
-import { roleGuard } from './core/guards/role.guard';
+### Contract facts that shape the UI
 
-{ path: 'admin', loadComponent: () => import('./features/admin/admin'), canActivate: [roleGuard('ADMIN')] }
-```
+- Paged responses are `{data, page, size, totalPages, totalElements}`; `PageQuery` and `Pager` are both 0-based to match.
+- **Money is a JSON number** — `40.00` parses to `40`. Always render through `formatMoney`, never recompute a total the server sent.
+- Rental pricing is **snapshotted server-side** at creation. The client never sends or recalculates a price.
+- Someone else's resource answers **404, not 403**. Treat 404 as "not yours or not there".
+- Signup and password reset always answer 202 with an identical body — the response cannot reveal whether an email exists. Never write copy that implies otherwise.
+- `/auth/*` is rate-limited to 10/min with `Retry-After`; auth screens render a countdown inline, never a toast.
+- Rental statuses: `PENDING → APPROVED → ACTIVE → COMPLETED`, with `REJECTED`, `CANCELLED` and `EXPIRED` as dead ends. `PENDING`/`APPROVED`/`ACTIVE` all block the car.
+- A car is publicly visible only when `published && status === 'ACTIVE'`.
 
-### Toast notifications
+### Design system
 
-`ToastService` wraps PrimeNG's `MessageService`. Use it instead of importing `MessageService` directly:
+`PLAN.md` §3 is the authority; read it before styling anything.
 
-```ts
-toastService.success('Saved', 'Your changes have been saved.');
-toastService.error('Failed', 'Something went wrong.');
-toastService.info('Note', 'Optional detail text.');
-toastService.warn('Warning', 'Check your input.');
-```
+- Palette, radii and form fields come from `core/theme/keyway-preset.ts` (a `definePreset` over Aura). PrimeNG components and the layout SCSS read the same `--p-*` tokens, so brand changes happen in one place.
+- Shell and `.keyway-*` classes: `src/assets/layout/_keyway.scss`.
+- Brand Tailwind utilities: the `@theme` block in `src/assets/tailwind.css`.
+- Sora (display), Instrument Sans (body). Green `#0f4c3a`, lime `#d7f26a`, cream `#f7f6f3`.
+- **One lime CTA per screen.** Red is only for destructive actions and the notification badge.
+- No runtime theme configurator — the brand is fixed. Only light/dark/system remain.
 
-HTTP errors are automatically surfaced as toasts by `errorInterceptor` (network errors, 401, 403, 404, 500+).
+### Shared building blocks
 
-### Confirmation dialogs
+Reach for these before writing a new one: `EmptyState`, `Pager`, `CarCard`/`CarCardSkeleton`, `RentalStatusBadge`, `RentalTimeline`, `CarStatusBadge`/`PublishedBadge`, `NotificationRow`, `FieldError`, `StatusPage`.
 
-`ConfirmDialogService` wraps PrimeNG's `ConfirmationService` with a promise-based API:
+Status copy lives with its badge: `STATUS_LABELS`, `CLIENT_STATUS_EXPLANATIONS` and `OWNER_STATUS_EXPLANATIONS` in `shared/components/rental-status-badge.ts`. Owner transitions and their confirm copy live in `features/company/rental-actions.ts` — that table is the single source for which actions a status allows.
 
-```ts
-const confirmed = await confirmDialogService.confirm({
-    message: 'Delete this item?',
-    header: 'Confirm Delete'
-});
-if (confirmed) { /* proceed */ }
-```
+Formatting goes through `shared/utils/format.ts` (`formatMoney`, `formatDailyPrice`, `formatDateTime`, `formatDate`, `formatRelativeTime`, `toUtcInstant`). Relative time is for notifications only; rental dates must stay unambiguous.
 
-### Global loading bar
+### CSS gotcha
 
-`LoadingService` tracks in-flight HTTP requests. `loadingInterceptor` increments/decrements a counter automatically. A fixed progress bar at the top of the page shows when any request is active. No component-level wiring needed.
+Tailwind v4 runs through PostCSS and Angular's esbuild builder reads **`postcss.config.json`** only — JSON, not `.js`. `@source "../app"` in `tailwind.css` is what makes Tailwind scan Angular templates; templates outside `src/app/` need their own `@source`. The dark variant is `app-dark`, not `dark`.
 
-### Breadcrumbs
+## Traps worth remembering
 
-Driven by route `data.breadcrumb`. `BreadcrumbService` listens to router events and builds the trail. `AppBreadcrumb` renders it above the router outlet inside `AppLayout`.
+- `@if (x(); as y)` is **not** allowed on an `@else if` branch (NG5002). Nest a fresh `@if` inside the `@else if` instead.
+- `?? []` on a non-nullable field is a compile warning (NG8102).
+- Tailwind class names containing `:` cannot go in `[class.foo]` bindings — use a computed class string.
+- Prettier without `.prettierrc` reformats the whole tree; the config is there for a reason, don't bypass it.
+- `divide-*` utilities are not part of tailwindcss-primeui's surface tokens — use `border-t border-surface` per row.
 
-### Page title
+## Honesty rules for this repo
 
-`PageTitleStrategy` reads the deepest `data.breadcrumb` from the route tree and sets the document title to `"{breadcrumb} | {appName}"`. The app name comes from `environment.appName`.
+Several things here were invented once and had to be removed. Don't reintroduce them:
 
-### Notification bell
-
-`NotificationService` provides signals for notification data. `NotificationBell` component in the topbar shows a bell icon with unread badge count and a popover panel. Backend endpoints expected: `GET /notifications`, `PUT /notifications/{id}/read`, `PUT /notifications/read-all`.
-
-### Empty state component
-
-Reusable component for "no data" states:
-
-```html
-<app-empty-state
-    icon="pi pi-users"
-    title="No users found"
-    message="Try adjusting your filters."
-    actionLabel="Clear Filters"
-    (actionClick)="clearFilters()"
-/>
-```
-
-### Theme / dark mode
-
-`LayoutService` owns all theme state. `ThemeMode` (`'light' | 'dark' | 'system'`) is persisted to `localStorage` under the key `themeMode` and initialized on startup. System mode sets up a `matchMedia('prefers-color-scheme: dark')` listener. Dark mode is toggled by adding/removing the `app-dark` class on `<html>`. Call `layoutService.setThemeMode(mode)` to change it from any component.
-
-### CSS setup (important gotcha)
-
-Tailwind v4 utility classes are generated via PostCSS. Angular 20's esbuild builder only reads **`postcss.config.json`** (JSON, not `.js`). The `@source "../app"` directive in `src/assets/tailwind.css` is required so Tailwind scans Angular templates from `src/app/`. If you add templates outside `src/app/` they will need an additional `@source` directive. Dark-mode variant is `app-dark` (not `dark`), configured in `tailwind.css` as `@custom-variant dark (&:where(.app-dark, .app-dark *))`.
-
-### Adding a new domain service
-
-Follow the `UserService` pattern in `core/services/`:
-- Inject `HttpClient`, call `environment.apiUrl` for the base URL.
-- Models go in `core/models/` alongside `user.model.ts`.
-
-### Environments
-
-Three environment configurations are available:
-
-| Config | File | `apiUrl` | `appName` |
-|--------|------|----------|-----------|
-| development | `environment.development.ts` | `http://localhost:8080/api/v1` | MyApp (Dev) |
-| staging | `environment.staging.ts` | `https://staging-api.example.com/api/v1` | MyApp (Staging) |
-| production | `environment.ts` | `https://api.example.com/api/v1` | MyApp |
-
-All environment files implement the `Environment` interface from `environment.interface.ts`. The `appName` field is used by `PageTitleStrategy` for the browser tab title.
-
-### Backend contract
-
-Expects a Spring Boot backend at the URL configured in the active environment. Key endpoints:
-
-| Method | Path | Auth |
-|--------|------|------|
-| POST | `/auth/sign-in` | public |
-| POST | `/users` | public (register) |
-| GET | `/users/{id}` | bearer |
-| PUT | `/users/{id}` | bearer |
-| GET | `/notifications` | bearer |
-| PUT | `/notifications/{id}/read` | bearer |
-| PUT | `/notifications/read-all` | bearer |
+- **No fabricated social proof.** The landing page's testimonials and "4.8 ★ · 12k reviews" badge were placeholder copy from the design file; there is no reviews feature, so they were deleted. Do not write reviews, ratings, counts or customer quotes.
+- **No product claims the contract does not support.** If copy promises a behaviour, there must be an endpoint behind it.
+- Marketing copy that describes real behaviour (`STEPS` in `home.ts`) is fine and is marked static by design.

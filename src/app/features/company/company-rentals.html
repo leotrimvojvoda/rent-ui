@@ -1,4 +1,7 @@
 <div class="max-w-4xl">
+    <!-- The list swaps under a screen reader with no visual cue to follow, so its
+         state is announced. The skeletons themselves stay aria-hidden. -->
+    <p class="sr-only" role="status">{{ loading() ? 'Loading…' : totalElements() + ' rentals' }}</p>
     <h1 class="font-display font-bold text-2xl m-0 mb-1">Rental requests</h1>
     <p class="text-muted-color text-sm m-0 mb-5">@if (showingDefault()) { Requests waiting on your decision. An undecided request expires by itself when its pick-up time arrives. } @else { Rentals of your cars, newest first. }</p>
 

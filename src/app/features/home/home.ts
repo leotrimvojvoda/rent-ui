@@ -19,18 +19,6 @@ const STEPS = [
     { n: '3', title: 'Pick up and drive', body: "Your booking carries the company's address and contact details for pick-up." }
 ];
 
-/**
- * PLACEHOLDER COPY, carried over from the design file. There is no reviews or
- * ratings feature in the API, so none of this is real customer feedback —
- * replace it with genuine, attributable testimonials or delete the section
- * before this page goes in front of the public.
- */
-const PLACEHOLDER_REVIEWS = [
-    { quote: 'Booked at midnight, picked the car up at 8 AM. The price I saw was the price I paid.', initials: 'MR', name: 'Marcus R.', meta: 'Rented a Corolla · June 2026' },
-    { quote: 'Free cancellation saved my trip when my flight changed. Rebooked in two taps.', initials: 'AL', name: 'Aisha L.', meta: 'Rented a Model 3 · May 2026' },
-    { quote: "Counter pickup took five minutes. Cleanest rental I've ever driven.", initials: 'JT', name: 'Jonas T.', meta: 'Rented a CR-V · July 2026' }
-];
-
 @Component({
     selector: 'app-home',
     standalone: true,
@@ -43,7 +31,6 @@ export class Home {
     private router = inject(Router);
 
     readonly steps = STEPS;
-    readonly reviews = PLACEHOLDER_REVIEWS;
 
     readonly cities = signal<CityResponse[]>([]);
     readonly cityId = signal<string | null>(null);

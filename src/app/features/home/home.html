@@ -44,6 +44,7 @@
                 <p-datepicker
                     [ngModel]="pickupAt()"
                     (ngModelChange)="pickupAt.set($event)"
+                    ariaLabel="Pick-up date and time"
                     [showTime]="true"
                     [minDate]="minPickup"
                     hourFormat="24"
@@ -66,6 +67,7 @@
                 <p-datepicker
                     [ngModel]="returnAt()"
                     (ngModelChange)="returnAt.set($event)"
+                    ariaLabel="Return date and time"
                     [showTime]="true"
                     [minDate]="minReturn()"
                     hourFormat="24"
@@ -125,34 +127,6 @@
             <div class="text-[17px] font-semibold">{{ step.title }}</div>
             <div class="text-sm text-keyway-muted dark:text-surface-400 leading-[1.55] mt-1.5">{{ step.body }}</div>
         </div>
-        }
-    </div>
-</section>
-
-<!-- Reviews — placeholder copy from the design, see PLACEHOLDER_REVIEWS in home.ts -->
-<section id="reviews" class="mx-auto w-full max-w-[1100px] px-6 pt-20 scroll-mt-20">
-    <div class="flex flex-wrap items-center gap-3.5 mb-6">
-        <h2 class="font-display text-[28px] font-bold m-0 tracking-[-0.5px]">Trusted by drivers</h2>
-        <span class="bg-keyway-mint dark:bg-surface-800 text-keyway-green dark:text-keyway-lime text-[13px] font-bold px-3 py-[5px] rounded-full">4.8 ★ · 12k reviews</span>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-        @for (review of reviews; track review.initials) {
-        <figure class="bg-white dark:bg-surface-900 rounded-2xl p-6 shadow-[0_2px_10px_rgba(15,40,30,0.07)] m-0">
-            <div class="flex gap-0.5 mb-3">
-                @for (star of [1, 2, 3, 4, 5]; track star) {
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="#e8a13a" aria-hidden="true"><path d="M12 2l3 7 7 .5-5.4 4.8 1.7 7-6.3-4-6.3 4 1.7-7L2 9.5 9 9z"></path></svg>
-                }
-            </div>
-            <blockquote class="m-0 mb-4 text-[14.5px] leading-[1.55] text-keyway-body dark:text-surface-300">{{ review.quote }}</blockquote>
-            <figcaption class="flex items-center gap-2.5">
-                <span class="w-[34px] h-[34px] rounded-full bg-keyway-green text-keyway-lime flex items-center justify-center text-[13px] font-bold">{{ review.initials }}</span>
-                <span>
-                    <span class="block text-sm font-semibold">{{ review.name }}</span>
-                    <span class="block text-xs text-keyway-subtle">{{ review.meta }}</span>
-                </span>
-            </figcaption>
-        </figure>
         }
     </div>
 </section>

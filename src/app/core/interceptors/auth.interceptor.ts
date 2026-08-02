@@ -52,13 +52,16 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
             return auth.refresh().pipe(
                 switchMap((pair) => withBearer(req, next, pair.accessToken)),
                 catchError(() => {
-                    // The refresh token was revoked, expired or unknown: the session is over.
+                    // The refresh token was revoked, expired or unknown: the session
+                    // is over. Every request waiting on that one refresh lands here,
+                    // so only the caller that actually ends it says so.
                     const returnUrl = router.url;
-                    auth.clearSession();
-                    toast.info('Session expired', 'Please sign in again to continue.');
-                    void router.navigate(['/auth/login'], {
-                        queryParams: returnUrl && returnUrl !== '/' ? { returnUrl } : {}
-                    });
+                    if (auth.endExpiredSession()) {
+                        toast.info('Session expired', 'Please sign in again to continue.');
+                        void router.navigate(['/auth/login'], {
+                            queryParams: returnUrl && returnUrl !== '/' ? { returnUrl } : {}
+                        });
+                    }
                     return throwError(() => error);
                 })
             );

@@ -5,6 +5,7 @@ import { companySetupGuard, ownerCompanyGuard } from './core/guards/company.guar
 import { roleGuard } from './core/guards/role.guard';
 import { AppLayout } from './core/layout/component/app.layout';
 import { AppPublicLayout } from './core/layout/component/app.publiclayout';
+import { BreadcrumbParent } from './core/services/breadcrumb.service';
 import { CarDetail } from './features/catalog/car-detail';
 import { Catalog } from './features/catalog/catalog';
 import { CompanyProfile } from './features/company/company-profile';
@@ -21,6 +22,16 @@ import { Home } from './features/home/home';
 import { Notfound } from './features/notfound/notfound';
 import { Notifications } from './features/notifications/notifications';
 import { Settings } from './features/settings/settings';
+
+/**
+ * Detail pages are declared as flat routes rather than children of their list,
+ * so the trail above them is named explicitly. See `BreadcrumbService`. Only the
+ * authenticated shell renders breadcrumbs — the public layout has none, so its
+ * routes carry `breadcrumb` for the page title alone.
+ */
+const MY_RENTALS: BreadcrumbParent = { label: 'My rentals', link: '/rentals' };
+const RENTAL_REQUESTS: BreadcrumbParent = { label: 'Rental requests', link: '/company/rentals' };
+const FLEET: BreadcrumbParent = { label: 'Fleet', link: '/fleet' };
 
 export const appRoutes: Routes = [
     {
@@ -39,7 +50,7 @@ export const appRoutes: Routes = [
 
             // Client
             { path: 'rentals', component: Rentals, canActivate: [roleGuard('CLIENT')], data: { breadcrumb: 'My rentals' } },
-            { path: 'rentals/:rentalId', component: RentalDetail, canActivate: [roleGuard('CLIENT')], data: { breadcrumb: 'Rental' } },
+            { path: 'rentals/:rentalId', component: RentalDetail, canActivate: [roleGuard('CLIENT')], data: { breadcrumb: 'Rental', breadcrumbParent: MY_RENTALS } },
 
             // Owner
             {
@@ -58,7 +69,7 @@ export const appRoutes: Routes = [
                 path: 'company/rentals/:rentalId',
                 component: CompanyRentalDetail,
                 canActivate: [roleGuard('OWNER'), ownerCompanyGuard],
-                data: { breadcrumb: 'Request' }
+                data: { breadcrumb: 'Request', breadcrumbParent: RENTAL_REQUESTS }
             },
             {
                 path: 'company',
@@ -67,8 +78,8 @@ export const appRoutes: Routes = [
                 data: { breadcrumb: 'Company' }
             },
             { path: 'fleet', component: Fleet, canActivate: [roleGuard('OWNER'), ownerCompanyGuard], data: { breadcrumb: 'Fleet' } },
-            { path: 'fleet/new', component: CarEdit, canActivate: [roleGuard('OWNER'), ownerCompanyGuard], data: { breadcrumb: 'Add a car' } },
-            { path: 'fleet/:carId', component: CarEdit, canActivate: [roleGuard('OWNER'), ownerCompanyGuard], data: { breadcrumb: 'Edit car' } },
+            { path: 'fleet/new', component: CarEdit, canActivate: [roleGuard('OWNER'), ownerCompanyGuard], data: { breadcrumb: 'Add a car', breadcrumbParent: FLEET } },
+            { path: 'fleet/:carId', component: CarEdit, canActivate: [roleGuard('OWNER'), ownerCompanyGuard], data: { breadcrumb: 'Edit car', breadcrumbParent: FLEET } },
 
             // Shared
             {
@@ -85,7 +96,7 @@ export const appRoutes: Routes = [
     },
 
     { path: 'auth', loadChildren: () => import('./features/auth/auth.routes') },
-    { path: 'notfound', component: Notfound },
+    { path: 'notfound', component: Notfound, data: { breadcrumb: 'Page not found' } },
 
     {
         // Public site — no auth, no guard.

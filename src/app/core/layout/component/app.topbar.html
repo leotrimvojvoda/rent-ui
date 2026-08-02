@@ -1,7 +1,7 @@
 <div class="layout-topbar">
     <div class="layout-topbar-logo-container">
-        <button class="layout-menu-button layout-topbar-action" (click)="layoutService.onMenuToggle()">
-            <i class="pi pi-bars"></i>
+        <button type="button" class="layout-menu-button layout-topbar-action" aria-label="Toggle menu" (click)="layoutService.onMenuToggle()">
+            <i class="pi pi-bars" aria-hidden="true"></i>
         </button>
         <a class="layout-topbar-logo" routerLink="/dashboard">
             <span class="keyway-logo-mark">
@@ -19,51 +19,47 @@
     <div class="layout-topbar-actions">
         <div class="layout-config-menu">
             <app-notification-bell />
-            <button type="button" class="layout-topbar-action" (click)="toggleDarkMode()">
-                <i [ngClass]="{ pi: true, 'pi-moon': layoutService.isDarkTheme(), 'pi-sun': !layoutService.isDarkTheme() }"></i>
+            <button type="button" class="layout-topbar-action" [attr.aria-label]="themeToggleLabel()" (click)="toggleDarkMode()">
+                <i [ngClass]="{ pi: true, 'pi-moon': layoutService.isDarkTheme(), 'pi-sun': !layoutService.isDarkTheme() }" aria-hidden="true"></i>
             </button>
         </div>
         <div class="layout-topbar-menu hidden lg:block">
             <div class="layout-topbar-menu-content">
                 @if (authService.isLoggedIn()) {
-                <div class="relative">
-                    <button
-                        type="button"
-                        class="layout-topbar-action keyway-user-button"
-                        pStyleClass="@next"
-                        enterFromClass="hidden"
-                        enterActiveClass="animate-scalein"
-                        leaveToClass="hidden"
-                        leaveActiveClass="animate-fadeout"
-                        [hideOnOutsideClick]="true"
-                    >
-                        <i class="pi pi-user"></i>
+                <!-- A disclosure, driven by a signal rather than a class-toggling
+                     directive: `aria-expanded` has to stay true to what is on screen,
+                     including when an outside click or Escape closes it. -->
+                <div class="relative" (keydown.escape)="closeAccountMenu()">
+                    <button type="button" class="layout-topbar-action keyway-user-button" aria-haspopup="menu" [attr.aria-expanded]="accountMenuOpen()" (click)="toggleAccountMenu($event)">
+                        <i class="pi pi-user" aria-hidden="true"></i>
                         <span>{{ authService.currentUser()?.firstName }}</span>
                     </button>
-                    <div class="hidden absolute top-full right-0 z-50 bg-surface-0 dark:bg-surface-900 shadow-lg rounded-border flex flex-col p-2 gap-1 min-w-56 mt-2 border border-surface">
+                    @if (accountMenuOpen()) {
+                    <div class="absolute top-full right-0 z-50 bg-surface-0 dark:bg-surface-900 shadow-lg rounded-border flex flex-col p-2 gap-1 min-w-56 mt-2 border border-surface animate-scalein">
                         <div class="px-3 py-2">
                             <div class="font-medium">{{ authService.displayName() }}</div>
                             <div class="text-muted-color text-sm">{{ roleLabel() }}</div>
                         </div>
                         <div class="border-t border-surface my-1"></div>
-                        <a routerLink="/cars" class="flex items-center gap-2 px-3 py-2 rounded cursor-pointer hover:bg-emphasis text-color no-underline">
-                            <i class="pi pi-search"></i>
+                        <a routerLink="/cars" class="flex items-center gap-2 px-3 py-2 rounded cursor-pointer hover:bg-emphasis text-color no-underline" (click)="closeAccountMenu()">
+                            <i class="pi pi-search" aria-hidden="true"></i>
                             <span>Browse cars</span>
                         </a>
-                        <a routerLink="/settings" class="flex items-center gap-2 px-3 py-2 rounded cursor-pointer hover:bg-emphasis text-color no-underline">
-                            <i class="pi pi-cog"></i>
+                        <a routerLink="/settings" class="flex items-center gap-2 px-3 py-2 rounded cursor-pointer hover:bg-emphasis text-color no-underline" (click)="closeAccountMenu()">
+                            <i class="pi pi-cog" aria-hidden="true"></i>
                             <span>Settings</span>
                         </a>
                         <div class="border-t border-surface my-1"></div>
                         <button type="button" (click)="logout()" class="flex items-center gap-2 px-3 py-2 rounded cursor-pointer hover:bg-emphasis text-color w-full text-left border-none bg-transparent">
-                            <i class="pi pi-sign-out"></i>
+                            <i class="pi pi-sign-out" aria-hidden="true"></i>
                             <span>Log out</span>
                         </button>
                     </div>
+                    }
                 </div>
                 } @else {
                 <button type="button" class="layout-topbar-action" routerLink="/auth/login">
-                    <i class="pi pi-sign-in"></i>
+                    <i class="pi pi-sign-in" aria-hidden="true"></i>
                     <span>Log in</span>
                 </button>
                 }
