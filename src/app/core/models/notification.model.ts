@@ -18,6 +18,21 @@ export interface UnreadCountResponse {
     unread: number;
 }
 
+/**
+ * Short name per event type. The server already sends readable prose in
+ * `message`, so this is not a heading — it is the accessible name for the icon
+ * chip, which would otherwise be a decorative glyph with no text.
+ */
+export const NOTIFICATION_LABELS: Record<NotificationType, string> = {
+    RENTAL_REQUESTED: 'New request',
+    RENTAL_APPROVED: 'Approved',
+    RENTAL_REJECTED: 'Rejected',
+    RENTAL_CANCELLED: 'Cancelled',
+    RENTAL_EXPIRED: 'Expired',
+    RENTAL_PICKUP_REMINDER: 'Pick-up reminder',
+    RENTAL_RETURN_REMINDER: 'Return reminder'
+};
+
 /** Icon per event type, for the bell and the notifications page. */
 export const NOTIFICATION_ICONS: Record<NotificationType, string> = {
     RENTAL_REQUESTED: 'pi pi-inbox',

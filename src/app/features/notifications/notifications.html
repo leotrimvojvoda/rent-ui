@@ -1,0 +1,64 @@
+<div class="max-w-3xl">
+    <h1 class="font-display font-bold text-2xl m-0 mb-1">Notifications</h1>
+    <p class="text-muted-color text-sm m-0 mb-5">Everything that happened to your rentals, newest first. Opening one takes you to the rental it is about.</p>
+
+    <div class="card keyway-card-flush">
+        <!-- Header: the filter and the one bulk action, kept out of the scrolling list. -->
+        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-surface">
+            <div class="flex gap-2" role="group" aria-label="Filter notifications">
+                <button
+                    type="button"
+                    class="px-3.5 py-1.5 rounded-full text-sm font-medium cursor-pointer border transition-colors"
+                    [class]="!unreadOnly() ? 'bg-primary text-primary-contrast border-primary' : 'bg-transparent text-muted-color border-surface hover:text-color'"
+                    [attr.aria-pressed]="!unreadOnly()"
+                    (click)="setUnreadOnly(false)"
+                >
+                    All
+                </button>
+                <button
+                    type="button"
+                    class="px-3.5 py-1.5 rounded-full text-sm font-medium cursor-pointer border transition-colors"
+                    [class]="unreadOnly() ? 'bg-primary text-primary-contrast border-primary' : 'bg-transparent text-muted-color border-surface hover:text-color'"
+                    [attr.aria-pressed]="unreadOnly()"
+                    (click)="setUnreadOnly(true)"
+                >
+                    Unread @if (hasUnread()) {<span>({{ notificationService.unreadCount() }})</span>}
+                </button>
+            </div>
+
+            @if (hasUnread()) {
+            <button type="button" class="text-sm font-medium text-primary bg-transparent border-none cursor-pointer p-0" [disabled]="markingAll()" (click)="markAllAsRead()">{{ markingAll() ? 'Marking…' : 'Mark all as read' }}</button>
+            }
+        </div>
+
+        @if (loading()) {
+        <div class="flex flex-col" aria-hidden="true">
+            @for (skeleton of skeletons; track skeleton) {
+            <div class="flex items-start gap-3 px-4 py-3.5">
+                <div class="w-9 h-9 rounded-xl bg-keyway-shade dark:bg-surface-800 animate-pulse shrink-0"></div>
+                <div class="flex-1">
+                    <div class="h-4 rounded bg-keyway-shade dark:bg-surface-800 animate-pulse"></div>
+                    <div class="h-3 w-24 rounded bg-keyway-shade dark:bg-surface-800 animate-pulse mt-2"></div>
+                </div>
+            </div>
+            }
+        </div>
+        } @else if (failed()) {
+        <app-empty-state icon="pi pi-exclamation-triangle" title="We couldn't load your notifications" message="Something went wrong reaching the server. Refresh the page to try again." />
+        } @else if (items().length === 0) { @if (unreadOnly()) {
+        <app-empty-state icon="pi pi-check-circle" title="You're all caught up" message="Nothing unread right now." actionLabel="Show all notifications" (actionClick)="setUnreadOnly(false)" />
+        } @else {
+        <app-empty-state icon="pi pi-bell-slash" title="Nothing yet" message="Updates about your rentals — requests, decisions and reminders — land here." />
+        } } @else {
+        <div>
+            @for (item of items(); track item.id; let first = $first) {
+            <div [class]="first ? '' : 'border-t border-surface'">
+                <app-notification-row [notification]="item" (activate)="onActivate($event)" />
+            </div>
+            }
+        </div>
+        }
+    </div>
+
+    <app-pager [page]="page()" [size]="pageSize" [totalElements]="totalElements()" [totalPages]="totalPages()" (pageChange)="onPageChange($event)" />
+</div>

@@ -288,6 +288,15 @@ Replace template bell wiring: new model (7 event types, `rentalId`), paged GET, 
 *Design*: the bell popover and the full page share one notification row — type icon chip, message, relative time, unread dot in brand green. The badge is the one place red is allowed. The full page is a single `.card` list with the unread-only toggle in its header.
 *Acceptance*: an owner sees the badge rise within a minute of a client's request without reloading; clicking opens the owner rental detail and clears the dot; client notified on approve/reject/expiry; reminders deep-link correctly; dark mode and 360 px checked.
 
+*As built*:
+- **Polling is restrained deliberately.** The 60 s timer runs only while signed in *and* the tab is visible; `visibilitychange` stops it and restarts it, `focus` triggers an immediate refresh, and a 10 s floor keeps alt-tabbing from turning the cheap endpoint into an expensive one. Returning to the tab therefore updates the badge at once rather than up to a minute later.
+- **Only the count is polled.** The popover fetches its rows on open. A badge costs one integer; a page of rows every minute for every signed-in user would not be worth it.
+- **The deep link is resolved from the role, not the notification.** Both roles get a `rentalId`, but a client owns `/rentals/:id` and an owner `/company/rentals/:id`, and each 404s on the other — so `NotificationRow` reads `AuthService.role()`. Any third role falls back to `/notifications` rather than a URL certain to 404.
+- Read state is applied optimistically and **not** rolled forward on failure: a failed mark-read leaves the dot showing rather than claiming success. `read-all` trusts the `unread` count in its own response over local arithmetic.
+- Two shell classes were added to `_keyway.scss` for full-bleed lists: `.card.keyway-card-flush` (card shell, no inset) and `.keyway-popover` (kills `.p-popover-content` padding). Rows bring their own padding so hover fills reach the panel edges.
+- `formatRelativeTime` lives in `shared/utils/format.ts` and switches to an absolute date past 7 days — "47d ago" is arithmetic nobody wants to do. Notifications are the only place relative time is correct; rental dates must stay unambiguous.
+- `PlaceholderPage` and the `soon()` route helper are **deleted** — every route in the app is now real.
+
 ### Phase 8 — Polish and hardening
 Complete the error-code copy map (every code in API.md); empty/skeleton audit; breadcrumbs + titles for all routes; session-expiry UX review; money/date formatting audit; accessibility pass on forms/dialogs (labels, focus order, dialog focus traps, contrast — lime on green and muted-on-cream both need checking); refresh CLAUDE.md and README (both still describe the template); manual end-to-end smoke of both persona journeys including raced-conflict paths (double-book, transition conflict, expired code).
 

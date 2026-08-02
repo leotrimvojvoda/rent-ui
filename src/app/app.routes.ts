@@ -19,13 +19,8 @@ import { Rentals } from './features/rentals/rentals';
 import { Dashboard } from './features/dashboard/dashboard';
 import { Home } from './features/home/home';
 import { Notfound } from './features/notfound/notfound';
+import { Notifications } from './features/notifications/notifications';
 import { Settings } from './features/settings/settings';
-import { PlaceholderPage } from './shared/components/placeholder-page';
-
-/** Pages later phases replace; the routes, menu and breadcrumbs are real today. */
-const soon = (title: string, message: string, icon: string) => ({
-    placeholder: { title, message, icon }
-});
 
 export const appRoutes: Routes = [
     {
@@ -78,11 +73,8 @@ export const appRoutes: Routes = [
             // Shared
             {
                 path: 'notifications',
-                component: PlaceholderPage,
-                data: {
-                    breadcrumb: 'Notifications',
-                    ...soon('Notifications', 'Everything that happened to your rentals, in one list.', 'pi pi-bell')
-                }
+                component: Notifications,
+                data: { breadcrumb: 'Notifications' }
             },
             {
                 path: 'settings',

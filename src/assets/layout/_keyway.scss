@@ -68,6 +68,13 @@ h4 {
     border: 1px solid var(--surface-border);
 }
 
+/* A card whose content is a full-bleed list: same shell, no inset, so row
+   dividers and hover fills reach the edges. Rows bring their own padding. */
+.card.keyway-card-flush {
+    padding: 0;
+    overflow: hidden;
+}
+
 /* Section heading used above card groups on dashboards and list pages. */
 .keyway-section-title {
     font-family: 'Sora', sans-serif;
@@ -244,4 +251,12 @@ h4 {
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.05);
     pointer-events: none;
+}
+
+/* Popover holding a full-bleed list: the default padding would inset the rows
+   and cut their hover fill short of the panel edges. */
+.keyway-popover .p-popover-content {
+    padding: 0;
+    overflow: hidden;
+    border-radius: inherit;
 }
